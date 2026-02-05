@@ -59,7 +59,6 @@
         .btn-success { background: var(--success); }
         .btn-error { background: var(--error); }
         .btn-omega { background: var(--omega); }
-        .btn-poof { background: var(--poof); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .main-view { padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
@@ -75,9 +74,6 @@
         .module-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px dashed #1e293b; border-radius: 8px; background: #020617; transition: all 0.3s ease; }
         .module-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 800; color: #f8fafc; }
         .module-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-top: 5px; }
-        
-        .module-active { border-color: var(--success); background: rgba(16, 185, 129, 0.05); }
-        .module-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.05); }
 
         .digit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
         .digit-box { 
@@ -91,18 +87,6 @@
         .digit-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--accent); opacity: 0.15; transition: height 0.3s; pointer-events: none; }
         
         .digit-box.active-tick { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.4); z-index: 3; }
-        .digit-box.win-highlight { 
-            border: 2px solid var(--success) !important; 
-            box-shadow: 0 0 15px var(--success); 
-            animation: pulse-win 1.5s infinite;
-            z-index: 4;
-        }
-
-        @keyframes pulse-win {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
 
         .activity-log { background: #020617; border: 1px solid var(--border); height: 160px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0.6rem; overflow-y: auto; }
         .log-entry { margin-bottom: 4px; display: flex; gap: 8px; border-bottom: 1px solid #1e293b33; padding-bottom: 2px; }
@@ -120,20 +104,11 @@
         .history-list { overflow-y: auto; flex-grow: 1; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
         
         .history-item { 
-            background: #0f172a;
-            margin-bottom: 6px;
-            padding: 8px;
-            border-radius: 6px;
-            border-left: 3px solid #334155;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+            background: #0f172a; margin-bottom: 6px; padding: 8px; border-radius: 6px; border-left: 3px solid #334155; display: flex; flex-direction: column; gap: 4px;
         }
         .history-item.win { border-left-color: var(--success); }
         .history-item.loss { border-left-color: var(--error); }
         .hist-header { display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; }
-        .hist-body { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px; color: var(--text-dim); }
-        .hist-meta { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; margin-top: 4px; padding-top: 4px; font-size: 9px; }
 
         .btn-clear { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 2px 6px; font-size: 9px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .btn-clear:hover { background: var(--error); color: white; border-color: var(--error); }
@@ -147,13 +122,30 @@
         .poof-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .poof-title { font-size: 9px; font-weight: 800; color: #ddd6fe; text-transform: uppercase; letter-spacing: 1px; }
 
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-        .badge-omega { background: var(--omega); color: #000; }
-
         .boost-bar { width: 100%; height: 4px; background: #312e81; border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .boost-fill { height: 100%; width: 0%; background: var(--omega); transition: width 0.3s ease; }
 
-        #accuracyChartContainer { position: relative; height: 100%; width: 100%; }
+        /* MODAL CSS */
+        #digitModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 1000;
+            display: none; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--card-bg); border: 1px solid var(--accent);
+            padding: 1.5rem; border-radius: 12px; width: 280px; text-align: center;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+        }
+        .modal-title { font-size: 14px; font-weight: 800; margin-bottom: 1rem; color: var(--text-main); text-transform: uppercase; }
+        .modal-actions { display: flex; flex-direction: column; gap: 8px; }
+        .modal-btn { padding: 12px; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; color: white; transition: transform 0.1s, opacity 0.2s; }
+        .modal-btn:active { transform: scale(0.95); }
+        .modal-btn:hover { opacity: 0.9; }
+        .m-over { background: var(--success); }
+        .m-under { background: var(--error); }
+        .m-bulk { background: var(--omega); }
+        .m-barrier { background: var(--accent); }
+        .m-close { background: transparent; border: 1px solid var(--border); color: var(--text-dim); margin-top: 5px; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -165,6 +157,20 @@
     </div>
     <div id="balanceDisplay" style="font-weight: 700; font-size: 14px; color: var(--success);">$0.00</div>
 </header>
+
+<!-- INTERACTIVE MODAL -->
+<div id="digitModal">
+    <div class="modal-content">
+        <div class="modal-title" id="modalTitle">ACTION FOR DIGIT 0</div>
+        <div class="modal-actions">
+            <button class="modal-btn m-over" id="modalBuyOver">TRADE OVER</button>
+            <button class="modal-btn m-under" id="modalBuyUnder">TRADE UNDER</button>
+            <button class="modal-btn m-bulk" id="modalBulkX">BULK X (OMEGA)</button>
+            <button class="modal-btn m-barrier" id="modalSetBarrier">SET AS BARRIER</button>
+            <button class="modal-btn m-close" onclick="closeDigitModal()">CANCEL</button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="sidebar">
@@ -180,27 +186,15 @@
             <div>
                 <label>MARKET</label>
                 <select id="market">
-                    <optgroup label="Volatility Indices">
-                        <option value="R_10">Volatility 10</option>
-                        <option value="R_25">Volatility 25</option>
-                        <option value="R_50">Volatility 50</option>
-                        <option value="R_75">Volatility 75</option>
-                        <option value="R_100" selected>Volatility 100</option>
-                        <option value="1HZ10V">Volatility 10 (1s)</option>
-                        <option value="1HZ25V">Volatility 25 (1s)</option>
-                        <option value="1HZ50V">Volatility 50 (1s)</option>
-                        <option value="1HZ75V">Volatility 75 (1s)</option>
-                        <option value="1HZ100V">Volatility 100 (1s)</option>
-                        <option value="1HZ150V">Volatility 150 (1s)</option>
-                        <option value="1HZ250V">Volatility 250 (1s)</option>
-                    </optgroup>
-                    <optgroup label="Jump Indices">
-                        <option value="JD10">Jump 10 Index</option>
-                        <option value="JD25">Jump 25 Index</option>
-                        <option value="JD50">Jump 50 Index</option>
-                        <option value="JD75">Jump 75 Index</option>
-                        <option value="JD100">Jump 100 Index</option>
-                    </optgroup>
+                    <option value="R_100" selected>Volatility 100</option>
+                    <option value="1HZ100V">Volatility 100 (1s)</option>
+                    <option value="R_10">Volatility 10</option>
+                    <option value="R_25">Volatility 25</option>
+                    <option value="R_50">Volatility 50</option>
+                    <option value="R_75">Volatility 75</option>
+                    <option value="1HZ10V">Volatility 10 (1s)</option>
+                    <option value="JD10">Jump 10 Index</option>
+                    <option value="JD100">Jump 100 Index</option>
                 </select>
             </div>
             <div>
@@ -240,8 +234,8 @@
             <label>AI MODE</label>
             <select id="aiMode">
                 <option value="adaptive" selected>Fully Adaptive (Omega)</option>
-                <option value="conservative">Safe Predictor</option>
-                <option value="aggressive">High Frequency</option>
+                <option value="aggressive">Omega Aggressive (Fast)</option>
+                <option value="conservative">Safe Predictor (90%+)</option>
             </select>
         </div>
         <button id="buyOver" class="btn btn-success" disabled>BUY OVER</button>
@@ -253,30 +247,30 @@
                 <span class="poof-title">Poof Sub-Engine</span>
                 <span id="poofValue" style="color: var(--poof); font-weight: 900;">0.0%</span>
             </div>
-            <div id="poofPrediction" style="font-size: 10px; color: #a5b4fc; font-style: italic;">Calibrating (W:20)...</div>
+            <div id="poofPrediction" style="font-size: 10px; color: #a5b4fc; font-style: italic;">Calibrating (W:25)...</div>
         </div>
     </div>
 
     <div class="main-view">
         <div class="card freq-card">
-            <div class="card-title">DIGIT FREQUENCY (100) <span style="font-size: 8px; color: var(--accent);">CLICK TO SET BARRIER</span></div>
+            <div class="card-title">DIGIT FREQUENCY (100)</div>
             <div class="digit-grid" id="digitFrequency"></div>
         </div>
 
         <div class="card feed-card">
-            <div class="card-title">LIVE OMEGA FEED <span id="active-ai-mode-label" class="badge badge-omega">Neural Boost</span></div>
+            <div class="card-title">LIVE OMEGA FEED</div>
             <div id="log" class="activity-log"></div>
         </div>
 
         <div class="card accuracy-card">
             <div class="card-title">PREDICTION ACCURACY</div>
-            <div id="accuracyChartContainer">
+            <div id="accuracyChartContainer" style="height: 100%;">
                 <canvas id="accuracyChart"></canvas>
             </div>
         </div>
 
         <div class="card module-card">
-            <div class="card-title">OMEGA GRAVITY [1] <span class="badge" style="background:var(--omega); color:white;">Gravity</span></div>
+            <div class="card-title">OMEGA GRAVITY [1]</div>
             <div class="module-content" id="core1Box">
                 <div class="module-val" id="core1Val">--</div>
                 <div class="module-label" id="core1Label">Analyzing Pull...</div>
@@ -284,7 +278,7 @@
         </div>
 
         <div class="card module-card">
-            <div class="card-title">VELOCITY BOOST [2] <span class="badge" style="background:var(--accent); color:white;">Momentum</span></div>
+            <div class="card-title">VELOCITY BOOST [2]</div>
             <div class="module-content" id="core2Box">
                 <div class="module-val" id="core2Val">--</div>
                 <div class="module-label" id="core2Label">Calculating Speed...</div>
@@ -292,7 +286,7 @@
         </div>
 
         <div class="card module-card">
-            <div class="card-title">PATTERN SYNC [3] <span class="badge" style="background:var(--success); color:white;">Logic</span></div>
+            <div class="card-title">PATTERN SYNC [3]</div>
             <div class="module-content" id="core3Box">
                 <div class="module-val" id="core3Val">--</div>
                 <div class="module-label" id="core3Label">Cross-Checking</div>
@@ -300,7 +294,7 @@
         </div>
 
         <div class="card module-card">
-            <div class="card-title">VOLATILITY FLOOR [4] <span class="badge" style="background:var(--warning); color:black;">Risk</span></div>
+            <div class="card-title">VOLATILITY FLOOR [4]</div>
             <div class="module-content" id="core4Box">
                 <div class="module-val" id="core4Val">--</div>
                 <div class="module-label" id="core4Label">Market Noise</div>
@@ -327,38 +321,24 @@
         <div class="tx-card" id="txDisplay">
             <div class="tx-row"><span class="tx-label">Status:</span> <span id="txStatus">Idle</span></div>
             <div class="tx-row"><span class="tx-label">Entry Spot:</span> <span id="txEntry">-</span></div>
-            <div class="tx-row"><span class="tx-label">Tick:</span> <span id="txTick">-</span></div>
+            <div class="tx-row"><span class="tx-label">Last Tick:</span> <span id="txTick">-</span></div>
             <div class="tx-row"><span class="tx-label">Time:</span> <span id="txTime">-</span></div>
             <div class="tx-row"><span class="tx-label">Result:</span> <span id="txResult">-</span></div>
         </div>
 
         <div class="card" style="margin-top: 1rem; padding: 0.5rem; background: #1e1b4b; border: 1px solid #312e81; height: 110px; flex-shrink: 0;">
             <div class="card-title" style="color: #c4b5fd; margin-bottom: 5px;">OMEGA INSIGHT</div>
-            <p id="aiInsight" style="font-size: 10px; line-height: 1.4; color: #a5b4fc; margin: 0; min-height: 28px;">Waiting for connection...</p>
-            
+            <p id="aiInsight" style="font-size: 10px; line-height: 1.4; color: #a5b4fc; margin: 0;">Waiting for connection...</p>
             <div class="indicator-grid">
-                <div class="ind-box">
-                    <span id="rsiVal" class="ind-val">--</span>
-                    <span class="ind-lbl">RSI (Digit)</span>
-                </div>
-                <div class="ind-box">
-                    <span id="volVal" class="ind-val">--</span>
-                    <span class="ind-lbl">Volatility</span>
-                </div>
-                <div class="ind-box">
-                    <span id="trendVal" class="ind-val">--</span>
-                    <span class="ind-lbl">Trend</span>
-                </div>
+                <div class="ind-box"><span id="rsiVal" class="ind-val">--</span><span class="ind-lbl">RSI</span></div>
+                <div class="ind-box"><span id="volVal" class="ind-val">--</span><span class="ind-lbl">Volat</span></div>
+                <div class="ind-box"><span id="trendVal" class="ind-val">--</span><span class="ind-lbl">Trend</span></div>
             </div>
         </div>
 
         <div class="history-card">
-            <div class="card-title">
-                TX HISTORY
-                <button class="btn-clear" id="clearHistory">CLEAR</button>
-            </div>
-            <div class="history-list" id="historyList">
-            </div>
+            <div class="card-title">TX HISTORY <button class="btn-clear" id="clearHistory">CLEAR</button></div>
+            <div class="history-list" id="historyList"></div>
         </div>
     </div>
 </div>
@@ -366,57 +346,81 @@
 <script>
 let ws;
 let ticks = [];
-let stats = Array(10).fill(0);
 let winCount = 0, totalTrades = 0, sessionProfit = 0;
 let isAiRunning = false, isTradeActive = false; 
 let accuracyChart;
-let txResetTimer = null;
 let smoothedConf = 0;
 let poofConf = 0;
-
-// DECAY & COOLDOWN LOGIC
 let tickCounter = 0;
-let lastTradeTick = -10; // Modified to 10
+let lastTradeTick = -10;
 let lastTickTime = Date.now();
+let selectedDigit = 0;
 
-// GENERATE DIGIT GRID
+// MODAL LOGIC
+function openDigitModal(digit) {
+    selectedDigit = digit;
+    document.getElementById('modalTitle').innerText = `ACTION FOR DIGIT ${digit}`;
+    document.getElementById('digitModal').style.display = 'flex';
+}
+
+function closeDigitModal() {
+    document.getElementById('digitModal').style.display = 'none';
+}
+
+document.getElementById('modalBuyOver').onclick = () => {
+    if (!document.getElementById('buyOver').disabled) {
+        executeTradeSpecific('over', selectedDigit);
+        closeDigitModal();
+    } else {
+        addLog("Please connect account first", "error");
+    }
+};
+
+document.getElementById('modalBuyUnder').onclick = () => {
+    if (!document.getElementById('buyUnder').disabled) {
+        executeTradeSpecific('under', selectedDigit);
+        closeDigitModal();
+    } else {
+        addLog("Please connect account first", "error");
+    }
+};
+
+document.getElementById('modalBulkX').onclick = async () => {
+    if (document.getElementById('buyOver').disabled) {
+        addLog("Please connect account first", "error");
+        return;
+    }
+    const bulk = parseInt(document.getElementById('bulk').value) || 1;
+    // Determine direction based on Poof sub-engine prediction for this digit
+    const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
+    
+    addLog(`Executing Bulk ${bulk}x on Digit ${selectedDigit}...`, "warning");
+    // Fire trades immediately with 200ms spacing to stack them on the platform
+    for(let i=0; i<bulk; i++) {
+        executeTradeSpecific(dir, selectedDigit);
+        await new Promise(r => setTimeout(r, 200));
+    }
+    closeDigitModal();
+};
+
+document.getElementById('modalSetBarrier').onclick = () => {
+    document.getElementById('barrier').value = selectedDigit;
+    addLog(`Barrier Switch: ${selectedDigit}`, "success");
+    closeDigitModal();
+};
+
+// INITIALIZE DIGIT GRID
 const digitFreqContainer = document.getElementById('digitFrequency');
 for(let i=0; i<=9; i++) {
     const div = document.createElement('div');
     div.className = 'digit-box';
     div.id = `digit-${i}`;
-    div.dataset.digit = i;
     div.innerHTML = `<span class="digit-val">${i}</span><span class="digit-pct" id="pct-${i}">0%</span><div class="digit-bar" id="bar-${i}"></div>`;
-    div.addEventListener('click', () => {
-        document.getElementById('barrier').value = i;
-        addLog(`Barrier Set: ${i}`, 'success');
-        runAIAnalysis(); // Force update on click
-    });
+    div.onclick = () => openDigitModal(i);
     digitFreqContainer.appendChild(div);
 }
 
-function fullDataReset() {
-    ticks = [];
-    stats = Array(10).fill(0);
-    smoothedConf = 0;
-    poofConf = 0;
-    tickCounter = 0;
-    lastTradeTick = -10;
-    document.getElementById('log').innerHTML = '';
-    for(let i=0; i<=9; i++) {
-        const bar = document.getElementById(`bar-${i}`);
-        const text = document.getElementById(`pct-${i}`);
-        if (bar) bar.style.height = `0%`;
-        if (text) text.innerText = `0%`;
-        document.getElementById(`digit-${i}`).classList.remove('active-tick', 'win-highlight');
-    }
-}
-
-function safeSend(data) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(data));
-    }
-}
+function safeSend(data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
 
 function initCharts() {
     if (accuracyChart) accuracyChart.destroy();
@@ -427,10 +431,7 @@ function initCharts() {
         options: { 
             responsive: true, maintainAspectRatio: false, 
             animation: { duration: 0 },
-            scales: { 
-                y: { min: 0, max: 100, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, 
-                x: { display: false } 
-            }, 
+            scales: { y: { min: 0, max: 100, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, x: { display: false } }, 
             plugins: { legend: { display: false } } 
         }
     });
@@ -447,8 +448,68 @@ function addLog(msg, type = 'info') {
     if(log.childNodes.length > 50) log.lastChild.remove();
 }
 
+function resetTxUI() {
+    document.getElementById('txStatus').innerText = "Idle";
+    document.getElementById('txEntry').innerText = "-";
+    document.getElementById('txTick').innerText = "-";
+    document.getElementById('txTime').innerText = "-";
+    document.getElementById('txResult').innerText = "-";
+    document.getElementById('txResult').style.color = 'var(--text-main)';
+}
+
+function resetSystemUI(fullReset = true) {
+    ticks = [];
+    smoothedConf = 0; 
+    poofConf = 0; 
+    tickCounter = 0;
+    lastTradeTick = -10;
+    
+    if (fullReset) {
+        winCount = 0; 
+        totalTrades = 0; 
+        sessionProfit = 0;
+        isAiRunning = false;
+        isTradeActive = false;
+        document.getElementById('balanceDisplay').innerText = "$0.00";
+        document.getElementById('sessionProfit').innerText = "$0.00";
+        document.getElementById('sessionProfit').style.color = "var(--text-main)";
+        if (accuracyChart) { accuracyChart.data.labels = []; accuracyChart.data.datasets[0].data = []; accuracyChart.update(); }
+    }
+
+    document.getElementById('aiConfidence').innerText = "0.0%";
+    document.getElementById('boostFill').style.width = "0%";
+    document.getElementById('aiStatusDisplay').innerText = "AI STANDBY";
+    document.getElementById('aiStatusDisplay').style.color = "var(--text-dim)";
+    document.getElementById('aiInsight').innerText = "Waiting for data...";
+    document.getElementById('poofValue').innerText = "0.0%";
+    document.getElementById('poofPrediction').innerText = "Calibrating (W:25)...";
+    
+    document.getElementById('rsiVal').innerText = "--";
+    document.getElementById('volVal').innerText = "--";
+    document.getElementById('trendVal').innerText = "--";
+    document.getElementById('core1Val').innerText = "--";
+    document.getElementById('core2Val').innerText = "--";
+    document.getElementById('core3Val').innerText = "--";
+    document.getElementById('core4Val').innerText = "--";
+
+    for(let i=0; i<=9; i++) {
+        document.getElementById(`bar-${i}`).style.height = `0%`;
+        document.getElementById(`pct-${i}`).innerText = `0%`;
+        document.getElementById(`digit-${i}`).classList.remove('active-tick');
+    }
+
+    resetTxUI();
+
+    if (fullReset) {
+        document.getElementById('aiBtn').innerText = "START AI ENGINE";
+        document.getElementById('aiBtn').classList.add('btn-omega');
+        document.getElementById('aiBtn').classList.remove('btn-error');
+    }
+
+    addLog("Memory Purged - Data Fresh", "warning");
+}
+
 function updateTxUI(data) {
-    if (txResetTimer) clearTimeout(txResetTimer);
     if (data.status) document.getElementById('txStatus').innerText = data.status;
     if (data.entry) document.getElementById('txEntry').innerText = data.entry;
     if (data.tick) document.getElementById('txTick').innerText = data.tick;
@@ -457,15 +518,6 @@ function updateTxUI(data) {
         const el = document.getElementById('txResult');
         el.innerText = data.result;
         el.style.color = data.result.includes('WIN') ? 'var(--success)' : 'var(--error)';
-        txResetTimer = setTimeout(() => {
-            document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('win-highlight'));
-            document.getElementById('txStatus').innerText = "Idle";
-            document.getElementById('txEntry').innerText = "-";
-            document.getElementById('txTick').innerText = "-";
-            document.getElementById('txTime').innerText = "-";
-            document.getElementById('txResult').innerText = "-";
-            document.getElementById('txResult').style.color = 'var(--text-main)';
-        }, 5000);
     }
 }
 
@@ -481,35 +533,37 @@ function addToHistory(contract) {
             <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
             <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? '+' : ''}${profit.toFixed(2)} USD</span>
         </div>
-        <div class="hist-body">
-            <div>Stake: $${contract.buy_price}</div>
-            <div>Entry: ${contract.entry_tick_display_value}</div>
-        </div>
+        <div style="font-size:9px; color:var(--text-dim)">Entry: ${contract.entry_tick_display_value} | Exit: ${contract.exit_tick_display_value}</div>
     `;
     list.prepend(item);
-    if(list.childNodes.length > 15) list.lastChild.remove();
+    if(list.childNodes.length > 20) list.lastChild.remove();
 }
 
+document.getElementById('market').onchange = (e) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        addLog(`Switching Market: ${e.target.value}`, "warning");
+        safeSend({ forget_all: "ticks" }); 
+        resetSystemUI(false); 
+        safeSend({ ticks: e.target.value, subscribe: 1 }); 
+    }
+};
+
 document.getElementById('connectBtn').onclick = () => {
-    const btn = document.getElementById('connectBtn');
     if (ws && ws.readyState < 2) { ws.close(); return; }
-    
     const token = document.getElementById('apiToken').value.trim();
     if(!token) return addLog("API Token required", "error");
     if(document.getElementById('botPassword').value !== "641") return addLog("Invalid Access Key", "error");
 
     addLog("Connecting...", "warning");
     ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-    
     ws.onopen = () => safeSend({ authorize: token });
     ws.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
         if(data.error) return addLog(data.error.message, "error");
-        
         if(data.msg_type === 'authorize') {
             document.getElementById('connectionStatus').classList.add('online');
-            btn.innerText = "DISCONNECT";
-            btn.classList.replace('btn-primary', 'btn-error');
+            document.getElementById('connectBtn').innerText = "DISCONNECT";
+            document.getElementById('connectBtn').classList.replace('btn-primary', 'btn-error');
             safeSend({ ticks: document.getElementById('market').value, subscribe: 1 });
             safeSend({ balance: 1, subscribe: 1 });
             safeSend({ proposal_open_contract: 1, subscribe: 1 });
@@ -519,17 +573,11 @@ document.getElementById('connectBtn').onclick = () => {
         }
         if(data.msg_type === 'balance') document.getElementById('balanceDisplay').innerText = `${data.balance.currency} ${data.balance.balance}`;
         if(data.msg_type === 'tick') processTick(data.tick);
-        if(data.msg_type === 'buy') { 
-            isTradeActive = true; 
-            updateTxUI({ status: "Trade Active", time: new Date().toLocaleTimeString() }); 
-        }
+        if(data.msg_type === 'buy') { isTradeActive = true; updateTxUI({ status: "Trade Active", time: new Date().toLocaleTimeString() }); }
         if(data.msg_type === 'proposal_open_contract') {
             const c = data.proposal_open_contract;
-            
-            // Real-time updates for Live Transaction card
             if (c.entry_tick_display_value) document.getElementById('txEntry').innerText = c.entry_tick_display_value;
             if (c.exit_tick_display_value) document.getElementById('txTick').innerText = c.exit_tick_display_value;
-
             if(c?.is_sold) {
                 isTradeActive = false;
                 const p = parseFloat(c.profit);
@@ -538,16 +586,16 @@ document.getElementById('connectBtn').onclick = () => {
                 updateTxUI({ result: p > 0 ? `WIN +$${p.toFixed(2)}` : `LOSS $${p.toFixed(2)}` });
                 addToHistory(c);
                 updateAccountUI();
+                setTimeout(() => { if(!isTradeActive) resetTxUI(); }, 5000);
             }
         }
     };
     ws.onclose = () => {
         document.getElementById('connectionStatus').classList.remove('online');
-        btn.innerText = "CONNECT ACCOUNT";
-        btn.classList.replace('btn-error', 'btn-primary');
+        document.getElementById('connectBtn').innerText = "CONNECT ACCOUNT";
+        document.getElementById('connectBtn').classList.replace('btn-error', 'btn-primary');
         document.querySelectorAll('.sidebar .btn:not(#connectBtn)').forEach(b => b.disabled = true);
-        isAiRunning = false;
-        fullDataReset();
+        resetSystemUI(true); 
     };
 };
 
@@ -556,9 +604,7 @@ function processTick(tick) {
     const digit = parseInt(tick.quote.toString().slice(-1));
     ticks.push(digit);
     if(ticks.length > 100) ticks.shift();
-
-    tickCounter++; 
-    lastTickTime = Date.now();
+    tickCounter++; lastTickTime = Date.now();
     
     document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('active-tick'));
     document.getElementById(`digit-${digit}`)?.classList.add('active-tick');
@@ -571,24 +617,14 @@ function processTick(tick) {
         document.getElementById(`pct-${i}`).innerText = `${pct.toFixed(0)}%`;
     }
     
-    // Engine calculations run ALWAYS regardless of Engine Switch
     runAIAnalysis();
     runCoreEngines();
     
     const statusEl = document.getElementById('aiStatusDisplay');
-    const ticksLeft = (isAiRunning ? 10 : 0) - (tickCounter - lastTradeTick); // Reduced to 10
-    
+    const ticksLeft = 10 - (tickCounter - lastTradeTick);
     if (isAiRunning) {
-        if (ticksLeft > 0) {
-            statusEl.innerText = `COOLING DOWN (${ticksLeft}t)`;
-            statusEl.style.color = "var(--warning)";
-        } else {
-            statusEl.innerText = "SCANNING OPPORTUNITY";
-            statusEl.style.color = "var(--success)";
-        }
-    } else {
-        statusEl.innerText = "AI STANDBY";
-        statusEl.style.color = "var(--text-dim)";
+        if (ticksLeft > 0) { statusEl.innerText = `COOLING DOWN (${ticksLeft}t)`; statusEl.style.color = "var(--warning)"; }
+        else { statusEl.innerText = "SCANNING OPPORTUNITY"; statusEl.style.color = "var(--success)"; }
     }
 }
 
@@ -596,110 +632,94 @@ function runAIAnalysis() {
     if(ticks.length < 10) return; 
     const barrier = parseInt(document.getElementById('barrier').value);
     
-    // RSI & Volatility
     let gains = 0, losses = 0;
     for(let i = 1; i <= 14 && i < ticks.length; i++) {
-        let diff = ticks[ticks.length - i] - ticks[ticks.length - i - 1];
+        let diff = ticks[ticks.length - i] - (ticks[ticks.length - i - 1] || 0);
         if(diff >= 0) gains += diff; else losses -= diff;
     }
     const rsi = losses === 0 ? 100 : 100 - (100 / (1 + (gains / (losses || 1))));
-    
     const recent = ticks.slice(-20);
     const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
     const volatility = Math.sqrt(recent.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / recent.length);
-
     document.getElementById('rsiVal').innerText = rsi.toFixed(1);
     document.getElementById('volVal').innerText = volatility.toFixed(2);
     document.getElementById('trendVal').innerText = ticks.slice(-5).reduce((a,b)=>a+b)/5 > mean ? "BULL" : "BEAR";
 
-    // POOF ENGINE
     const poofWindow = ticks.slice(-25);
     let pOver = 0, pUnder = 0;
-    poofWindow.forEach((d, idx) => {
-        const weight = (idx + 1) / 25; 
-        if (d > barrier) pOver += weight; else if (d < barrier) pUnder += weight;
-    });
-    
-    const timeGap = (Date.now() - lastTickTime) / 1000;
-    const decay = timeGap * 2.5; 
-    
+    poofWindow.forEach((d, idx) => { const weight = (idx + 1) / 25; if (d > barrier) pOver += weight; else if (d < barrier) pUnder += weight; });
+    const decay = ((Date.now() - lastTickTime) / 1000) * 2.5; 
     poofConf = Math.max(Math.min((Math.max(pOver, pUnder) / (pOver + pUnder || 1)) * 100, 80) - decay, 0); 
     document.getElementById('poofValue').innerText = `${poofConf.toFixed(1)}%`;
     document.getElementById('poofPrediction').innerText = `Poof: ${pOver > pUnder ? "OVER" : "UNDER"} ${barrier}`;
 
-    // OMEGA CONFIDENCE - SMOOTHED
     let rawConf = poofConf + (ticks.slice(-3).filter(d => (pOver > pUnder ? d > barrier : d < barrier)).length / 3 * 15);
-    rawConf -= (volatility > 2.5 ? (volatility * 2) : 0) + (decay * 1.5);
-    rawConf = Math.min(Math.max(rawConf, 0), 98.5);
-
-    // Weighted smoothing to prevent jumping (30% new, 70% old)
+    rawConf = Math.min(Math.max(rawConf - (volatility * 2), 0), 98.5);
     smoothedConf = (smoothedConf * 0.7) + (rawConf * 0.3);
     
     document.getElementById('aiConfidence').innerText = `${smoothedConf.toFixed(1)}%`;
     document.getElementById('boostFill').style.width = `${smoothedConf}%`;
-    
-    if (timeGap < 5) {
-        document.getElementById('aiInsight').innerText = smoothedConf > 80 ? "Cluster detected. High signal quality." : "Scanning patterns...";
-    } else {
-        document.getElementById('aiInsight').innerText = "Data stale. Decay active.";
-    }
+    document.getElementById('aiInsight').innerText = smoothedConf > 80 ? "Cluster detected. High signal quality." : "Scanning patterns...";
 }
 
 function runCoreEngines() {
     const barrier = parseInt(document.getElementById('barrier').value);
     const dist = ticks.slice(-10).reduce((acc, d) => acc + Math.abs(d - barrier), 0) / 10;
     document.getElementById('core1Val').innerText = dist < 2 ? "HIGH" : "LOW";
-    document.getElementById('core2Val').innerText = Math.abs(ticks[ticks.length-1] - ticks[ticks.length-2]).toFixed(1);
+    document.getElementById('core2Val').innerText = Math.abs(ticks[ticks.length-1] - (ticks[ticks.length-2]||0)).toFixed(1);
     document.getElementById('core3Val').innerText = poofConf > 60 ? "LOCKED" : "SCAN";
     document.getElementById('core4Val').innerText = (ticks.slice(-10).reduce((a,b)=>a+b)/10).toFixed(1);
 }
-
-setInterval(() => { if (ticks.length > 5) runAIAnalysis(); }, 500);
 
 function updateAccountUI() {
     document.getElementById('sessionProfit').innerText = `$${sessionProfit.toFixed(2)}`;
     document.getElementById('sessionProfit').style.color = sessionProfit >= 0 ? 'var(--success)' : 'var(--error)';
     if(accuracyChart) {
-        accuracyChart.data.labels.push("");
-        accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
+        accuracyChart.data.labels.push(""); accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
         if(accuracyChart.data.labels.length > 20) { accuracyChart.data.labels.shift(); accuracyChart.data.datasets[0].data.shift(); }
         accuracyChart.update('none');
     }
 }
 
 async function executeTrade(dir) {
+    const barrier = document.getElementById('barrier').value;
+    executeTradeSpecific(dir, barrier);
+}
+
+async function executeTradeSpecific(dir, barrierValue) {
     if(!ws || ws.readyState !== 1) return;
     const stake = parseFloat(document.getElementById('stake').value);
-    const barrier = document.getElementById('barrier').value;
     safeSend({
         buy: 1, price: stake,
         parameters: { 
-            amount: stake, basis: 'stake', 
-            contract_type: dir === 'over' ? 'DIGITOVER' : 'DIGITUNDER', 
+            amount: stake, basis: 'stake', contract_type: dir === 'over' ? 'DIGITOVER' : 'DIGITUNDER', 
             currency: 'USD', duration: parseInt(document.getElementById('duration').value), 
-            duration_unit: 't', symbol: document.getElementById('market').value, barrier: barrier.toString()
+            duration_unit: 't', symbol: document.getElementById('market').value, barrier: barrierValue.toString()
         }
     });
 }
 
 document.getElementById('buyOver').onclick = () => executeTrade('over');
 document.getElementById('buyUnder').onclick = () => executeTrade('under');
-
 document.getElementById('aiBtn').onclick = () => {
     isAiRunning = !isAiRunning;
-    const btn = document.getElementById('aiBtn');
-    btn.innerText = isAiRunning ? "STOP AI ENGINE" : "START AI ENGINE";
-    btn.classList.toggle('btn-omega', !isAiRunning);
-    btn.classList.toggle('btn-error', isAiRunning);
+    document.getElementById('aiBtn').innerText = isAiRunning ? "STOP AI ENGINE" : "START AI ENGINE";
+    document.getElementById('aiBtn').classList.toggle('btn-omega', !isAiRunning);
+    document.getElementById('aiBtn').classList.toggle('btn-error', isAiRunning);
     if(isAiRunning) autoLoop();
 };
 
 async function autoLoop() {
     if(!isAiRunning) return;
-    const timeSinceLastTick = (Date.now() - lastTickTime) / 1000;
-    const cdLimit = 10; // Reduced to 10
+    const cdLimit = 10;
     
-    if(smoothedConf >= 85 && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit && timeSinceLastTick < 4) {
+    // Logic to respect AI Mode
+    const mode = document.getElementById('aiMode').value;
+    let threshold = 85; // Default for Adaptive
+    if (mode === 'aggressive') threshold = 78;
+    if (mode === 'conservative') threshold = 91;
+
+    if(smoothedConf >= threshold && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit) {
         const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
         lastTradeTick = tickCounter; 
         const bulk = parseInt(document.getElementById('bulk').value) || 1;
@@ -707,10 +727,7 @@ async function autoLoop() {
     }
     setTimeout(() => { if(isAiRunning) autoLoop(); }, 200);
 }
-
-document.getElementById('clearHistory').onclick = () => {
-    document.getElementById('historyList').innerHTML = '';
-};
+document.getElementById('clearHistory').onclick = () => { document.getElementById('historyList').innerHTML = ''; };
 </script>
 </body>
 </html>
