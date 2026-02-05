@@ -104,11 +104,14 @@
         .history-list { overflow-y: auto; flex-grow: 1; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
         
         .history-item { 
-            background: #0f172a; margin-bottom: 6px; padding: 8px; border-radius: 6px; border-left: 3px solid #334155; display: flex; flex-direction: column; gap: 4px;
+            background: #0f172a; margin-bottom: 6px; padding: 8px; border-radius: 6px; border-left: 4px solid #334155; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: background 0.2s;
         }
+        .history-item:hover { background: #1e293b; }
         .history-item.win { border-left-color: var(--success); }
         .history-item.loss { border-left-color: var(--error); }
-        .hist-header { display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; }
+        .hist-header { display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; margin-bottom: 2px; }
+        .hist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px; }
+        .hist-row { display: flex; justify-content: space-between; color: var(--text-dim); }
 
         .btn-clear { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 2px 6px; font-size: 9px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .btn-clear:hover { background: var(--error); color: white; border-color: var(--error); }
@@ -125,27 +128,32 @@
         .boost-bar { width: 100%; height: 4px; background: #312e81; border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .boost-fill { height: 100%; width: 0%; background: var(--omega); transition: width 0.3s ease; }
 
-        /* MODAL CSS */
-        #digitModal {
+        /* MODALS */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 1000;
             display: none; justify-content: center; align-items: center;
         }
         .modal-content {
             background: var(--card-bg); border: 1px solid var(--accent);
-            padding: 1.5rem; border-radius: 12px; width: 280px; text-align: center;
+            padding: 1.5rem; border-radius: 12px; width: 300px; text-align: center;
             box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
         }
         .modal-title { font-size: 14px; font-weight: 800; margin-bottom: 1rem; color: var(--text-main); text-transform: uppercase; }
         .modal-actions { display: flex; flex-direction: column; gap: 8px; }
         .modal-btn { padding: 12px; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; color: white; transition: transform 0.1s, opacity 0.2s; }
         .modal-btn:active { transform: scale(0.95); }
-        .modal-btn:hover { opacity: 0.9; }
         .m-over { background: var(--success); }
         .m-under { background: var(--error); }
         .m-bulk { background: var(--omega); }
         .m-barrier { background: var(--accent); }
         .m-close { background: transparent; border: 1px solid var(--border); color: var(--text-dim); margin-top: 5px; font-size: 10px; }
+
+        /* DETAIL MODAL CUSTOM STYLES */
+        .detail-card { width: 340px !important; text-align: left !important; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .detail-label { color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+        .detail-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -158,8 +166,8 @@
     <div id="balanceDisplay" style="font-weight: 700; font-size: 14px; color: var(--success);">$0.00</div>
 </header>
 
-<!-- INTERACTIVE MODAL -->
-<div id="digitModal">
+<!-- DIGIT ACTION MODAL -->
+<div id="digitModal" class="modal-overlay" onclick="handleOverlayClick(event, 'digitModal')">
     <div class="modal-content">
         <div class="modal-title" id="modalTitle">ACTION FOR DIGIT 0</div>
         <div class="modal-actions">
@@ -169,6 +177,17 @@
             <button class="modal-btn m-barrier" id="modalSetBarrier">SET AS BARRIER</button>
             <button class="modal-btn m-close" onclick="closeDigitModal()">CANCEL</button>
         </div>
+    </div>
+</div>
+
+<!-- TRANSACTION DETAIL POPUP -->
+<div id="txDetailModal" class="modal-overlay" onclick="handleOverlayClick(event, 'txDetailModal')">
+    <div class="modal-content detail-card">
+        <div class="modal-title" style="text-align: center; color: var(--omega); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">TX ANALYSIS REPORT</div>
+        <div id="txDetailContent">
+            <!-- Dynamically filled -->
+        </div>
+        <button class="modal-btn m-close" style="width:100%; margin-top: 20px;" onclick="closeTxDetail()">CLOSE REPORT</button>
     </div>
 </div>
 
@@ -355,8 +374,16 @@ let tickCounter = 0;
 let lastTradeTick = -10;
 let lastTickTime = Date.now();
 let selectedDigit = 0;
+let historyRecords = {}; // Store detailed contract data by ID
 
 // MODAL LOGIC
+function handleOverlayClick(e, id) {
+    if (e.target.id === id) {
+        if (id === 'digitModal') closeDigitModal();
+        if (id === 'txDetailModal') closeTxDetail();
+    }
+}
+
 function openDigitModal(digit) {
     selectedDigit = digit;
     document.getElementById('modalTitle').innerText = `ACTION FOR DIGIT ${digit}`;
@@ -365,6 +392,33 @@ function openDigitModal(digit) {
 
 function closeDigitModal() {
     document.getElementById('digitModal').style.display = 'none';
+}
+
+function closeTxDetail() {
+    document.getElementById('txDetailModal').style.display = 'none';
+}
+
+function showTxDetail(contractId) {
+    const data = historyRecords[contractId];
+    if (!data) return;
+
+    const container = document.getElementById('txDetailContent');
+    const isWin = parseFloat(data.profit) > 0;
+    const type = data.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
+    
+    container.innerHTML = `
+        <div class="detail-row"><span class="detail-label">Contract ID</span><span class="detail-val">${data.contract_id}</span></div>
+        <div class="detail-row"><span class="detail-label">Market</span><span class="detail-val">${data.display_name || 'Volatility Index'}</span></div>
+        <div class="detail-row"><span class="detail-label">Trade Type</span><span class="detail-val">${type} ${data.barrier}</span></div>
+        <div class="detail-row"><span class="detail-label">Status</span><span class="detail-val" style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'WIN':'LOSS'}</span></div>
+        <div class="detail-row"><span class="detail-label">Buy Price</span><span class="detail-val">$${parseFloat(data.buy_price).toFixed(2)}</span></div>
+        <div class="detail-row"><span class="detail-label">Profit/Loss</span><span class="detail-val" style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'+':''}${parseFloat(data.profit).toFixed(2)}</span></div>
+        <div class="detail-row"><span class="detail-label">Entry Spot</span><span class="detail-val">${data.entry_tick_display_value}</span></div>
+        <div class="detail-row"><span class="detail-label">Exit Spot</span><span class="detail-val">${data.exit_tick_display_value}</span></div>
+        <div class="detail-row"><span class="detail-label">Date/Time</span><span class="detail-val">${new Date(data.purchase_time * 1000).toLocaleString()}</span></div>
+    `;
+    
+    document.getElementById('txDetailModal').style.display = 'flex';
 }
 
 document.getElementById('modalBuyOver').onclick = () => {
@@ -391,14 +445,12 @@ document.getElementById('modalBulkX').onclick = async () => {
         return;
     }
     const bulk = parseInt(document.getElementById('bulk').value) || 1;
-    // Determine direction based on Poof sub-engine prediction for this digit
     const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
     
     addLog(`Executing Bulk ${bulk}x on Digit ${selectedDigit}...`, "warning");
-    // Fire trades immediately with 200ms spacing to stack them on the platform
     for(let i=0; i<bulk; i++) {
         executeTradeSpecific(dir, selectedDigit);
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 50)); // Changed from 200ms to 50ms as requested
     }
     closeDigitModal();
 };
@@ -409,7 +461,6 @@ document.getElementById('modalSetBarrier').onclick = () => {
     closeDigitModal();
 };
 
-// INITIALIZE DIGIT GRID
 const digitFreqContainer = document.getElementById('digitFrequency');
 for(let i=0; i<=9; i++) {
     const div = document.createElement('div');
@@ -470,9 +521,11 @@ function resetSystemUI(fullReset = true) {
         sessionProfit = 0;
         isAiRunning = false;
         isTradeActive = false;
+        historyRecords = {};
         document.getElementById('balanceDisplay').innerText = "$0.00";
         document.getElementById('sessionProfit').innerText = "$0.00";
         document.getElementById('sessionProfit').style.color = "var(--text-main)";
+        document.getElementById('historyList').innerHTML = '';
         if (accuracyChart) { accuracyChart.data.labels = []; accuracyChart.data.datasets[0].data = []; accuracyChart.update(); }
     }
 
@@ -505,8 +558,6 @@ function resetSystemUI(fullReset = true) {
         document.getElementById('aiBtn').classList.add('btn-omega');
         document.getElementById('aiBtn').classList.remove('btn-error');
     }
-
-    addLog("Memory Purged - Data Fresh", "warning");
 }
 
 function updateTxUI(data) {
@@ -522,21 +573,32 @@ function updateTxUI(data) {
 }
 
 function addToHistory(contract) {
+    historyRecords[contract.contract_id] = contract; // Store full object for popup
+    
     const list = document.getElementById('historyList');
     const item = document.createElement('div');
     const profit = parseFloat(contract.profit);
+    const stake = parseFloat(contract.buy_price);
     const isWin = profit > 0;
     const type = contract.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
+    const time = new Date(contract.purchase_time * 1000).toLocaleTimeString([], {hour12:false});
+
     item.className = `history-item ${isWin ? 'win' : 'loss'}`;
+    item.onclick = () => showTxDetail(contract.contract_id);
     item.innerHTML = `
         <div class="hist-header">
             <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
-            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? '+' : ''}${profit.toFixed(2)} USD</span>
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? 'WIN' : 'LOSS'}</span>
         </div>
-        <div style="font-size:9px; color:var(--text-dim)">Entry: ${contract.entry_tick_display_value} | Exit: ${contract.exit_tick_display_value}</div>
+        <div class="hist-grid">
+            <div class="hist-row"><span>Stake:</span><span>$${stake.toFixed(2)}</span></div>
+            <div class="hist-row"><span>Profit:</span><span style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'+':''}${profit.toFixed(2)}</span></div>
+            <div class="hist-row"><span>Time:</span><span>${time}</span></div>
+            <div class="hist-row"><span>Click:</span><span>Details</span></div>
+        </div>
     `;
     list.prepend(item);
-    if(list.childNodes.length > 20) list.lastChild.remove();
+    if(list.childNodes.length > 500) list.lastChild.remove();
 }
 
 document.getElementById('market').onchange = (e) => {
@@ -712,10 +774,8 @@ document.getElementById('aiBtn').onclick = () => {
 async function autoLoop() {
     if(!isAiRunning) return;
     const cdLimit = 10;
-    
-    // Logic to respect AI Mode
     const mode = document.getElementById('aiMode').value;
-    let threshold = 85; // Default for Adaptive
+    let threshold = 85; 
     if (mode === 'aggressive') threshold = 78;
     if (mode === 'conservative') threshold = 91;
 
@@ -723,11 +783,17 @@ async function autoLoop() {
         const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
         lastTradeTick = tickCounter; 
         const bulk = parseInt(document.getElementById('bulk').value) || 1;
-        for(let i=0; i<bulk; i++) { executeTrade(dir); await new Promise(r => setTimeout(r, 200)); }
+        for(let i=0; i<bulk; i++) { 
+            executeTrade(dir); 
+            await new Promise(r => setTimeout(r, 50)); // Fast bulk execution
+        }
     }
     setTimeout(() => { if(isAiRunning) autoLoop(); }, 200);
 }
-document.getElementById('clearHistory').onclick = () => { document.getElementById('historyList').innerHTML = ''; };
+document.getElementById('clearHistory').onclick = () => { 
+    document.getElementById('historyList').innerHTML = ''; 
+    historyRecords = {};
+};
 </script>
 </body>
 </html>
