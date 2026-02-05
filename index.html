@@ -21,7 +21,7 @@
         }
 
         * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
-        body { margin: 0; background: var(--bg); color: var(--text-main); font-size: 12px; }
+        body { margin: 0; background: var(--bg); color: var(--text-main); font-size: 12px; overflow: hidden; }
 
         header {
             padding: 0.75rem 1.25rem;
@@ -33,6 +33,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            height: 50px;
         }
 
         .brand { font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
@@ -41,7 +42,7 @@
 
         .container { display: grid; grid-template-columns: 280px 1fr 280px; height: calc(100vh - 50px); overflow: hidden; }
 
-        .sidebar { background: #0f172a; border-right: 1px solid var(--border); padding: 1rem; overflow-y: auto; }
+        .sidebar { background: #0f172a; border-right: 1px solid var(--border); padding: 1rem; overflow-y: auto; width: 280px; }
         .control-group { margin-bottom: 0.8rem; }
         label { display: block; color: var(--text-dim); margin-bottom: 0.3rem; font-size: 10px; font-weight: 700; text-transform: uppercase; }
         input, select { 
@@ -63,8 +64,20 @@
 
         .main-view { padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
         
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; position: relative; }
-        .card-title { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 0.75rem; display: flex; justify-content: space-between; text-transform: uppercase; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; position: relative; flex-shrink: 0; }
+        .card-title { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 0.75rem; display: flex; justify-content: space-between; text-transform: uppercase; align-items: center; }
+
+        .freq-card { height: 180px; }
+        .feed-card { height: 220px; }
+        .accuracy-card { height: 200px; flex-grow: 0; }
+        
+        .module-card { height: 130px; flex-shrink: 0; }
+        .module-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px dashed #1e293b; border-radius: 8px; background: #020617; transition: all 0.3s ease; }
+        .module-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 800; color: #f8fafc; }
+        .module-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-top: 5px; }
+        
+        .module-active { border-color: var(--success); background: rgba(16, 185, 129, 0.05); }
+        .module-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.05); }
 
         .digit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
         .digit-box { 
@@ -91,32 +104,58 @@
             100% { transform: scale(1); }
         }
 
-        .activity-log { background: #020617; border: 1px solid var(--border); height: 140px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0.6rem; overflow-y: auto; }
+        .activity-log { background: #020617; border: 1px solid var(--border); height: 160px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0.6rem; overflow-y: auto; }
         .log-entry { margin-bottom: 4px; display: flex; gap: 8px; border-bottom: 1px solid #1e293b33; padding-bottom: 2px; }
 
-        .ai-panel { background: #0f172a; border-left: 1px solid var(--border); padding: 1rem; overflow-y: auto; }
-        .ai-stat { background: #1e293b; padding: 0.6rem; border-radius: 8px; margin-bottom: 0.5rem; }
+        .ai-panel { background: #0f172a; border-left: 1px solid var(--border); padding: 1rem; overflow-y: auto; width: 280px; display: flex; flex-direction: column; }
+        .ai-stat { background: #1e293b; padding: 0.6rem; border-radius: 8px; margin-bottom: 0.5rem; height: 55px; flex-shrink: 0; }
         .stat-val { font-size: 16px; font-weight: 700; display: block; }
         .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
 
-        .tx-card { background: #020617; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-top: 5px; font-size: 11px; }
+        .tx-card { background: #020617; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-top: 5px; font-size: 11px; height: 115px; flex-shrink: 0; }
         .tx-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px dotted #1e293b; padding-bottom: 2px; }
         .tx-label { color: var(--text-dim); }
+
+        .history-card { background: #020617; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem; margin-top: 1rem; flex-grow: 1; min-height: 150px; display: flex; flex-direction: column; overflow: hidden; }
+        .history-list { overflow-y: auto; flex-grow: 1; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+        
+        .history-item { 
+            background: #0f172a;
+            margin-bottom: 6px;
+            padding: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .history-item.win { border-left-color: var(--success); }
+        .history-item.loss { border-left-color: var(--error); }
+        .hist-header { display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; }
+        .hist-body { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px; color: var(--text-dim); }
+        .hist-meta { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; margin-top: 4px; padding-top: 4px; font-size: 9px; }
+
+        .btn-clear { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 2px 6px; font-size: 9px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .btn-clear:hover { background: var(--error); color: white; border-color: var(--error); }
 
         .indicator-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 5px; }
         .ind-box { background: #0f172a; padding: 5px; border-radius: 4px; border: 1px solid #1e293b; text-align: center; }
         .ind-val { font-size: 10px; font-weight: 700; display: block; }
         .ind-lbl { font-size: 7px; color: var(--text-dim); text-transform: uppercase; }
 
-        .poof-ui { background: #2e1065; border: 1px solid var(--poof); border-radius: 8px; padding: 0.6rem; margin-top: 5px; }
+        .poof-ui { background: #2e1065; border: 1px solid var(--poof); border-radius: 8px; padding: 0.6rem; margin-top: 5px; height: 65px; }
         .poof-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .poof-title { font-size: 9px; font-weight: 800; color: #ddd6fe; text-transform: uppercase; letter-spacing: 1px; }
 
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
         .badge-omega { background: var(--omega); color: #000; }
 
+        #accuracyChartContainer { position: relative; height: 100%; width: 100%; }
+
         @media (max-width: 1000px) {
-            .container { grid-template-columns: 1fr; height: auto; }
+            .container { grid-template-columns: 1fr; height: auto; overflow: visible; }
+            body { overflow: auto; }
+            .sidebar, .ai-panel { width: 100%; }
         }
     </style>
 </head>
@@ -140,13 +179,27 @@
             <div>
                 <label>MARKET</label>
                 <select id="market">
-                    <option value="R_10">Volatility 10</option>
-                    <option value="R_25">Volatility 25</option>
-                    <option value="R_50">Volatility 50</option>
-                    <option value="R_75">Volatility 75</option>
-                    <option value="R_100" selected>Volatility 100</option>
-                    <option value="1HZ10V">Vol 10 (1s)</option>
-                    <option value="1HZ100V">Vol 100 (1s)</option>
+                    <optgroup label="Volatility Indices">
+                        <option value="R_10">Volatility 10</option>
+                        <option value="R_25">Volatility 25</option>
+                        <option value="R_50">Volatility 50</option>
+                        <option value="R_75">Volatility 75</option>
+                        <option value="R_100" selected>Volatility 100</option>
+                        <option value="1HZ10V">Volatility 10 (1s)</option>
+                        <option value="1HZ25V">Volatility 25 (1s)</option>
+                        <option value="1HZ50V">Volatility 50 (1s)</option>
+                        <option value="1HZ75V">Volatility 75 (1s)</option>
+                        <option value="1HZ100V">Volatility 100 (1s)</option>
+                        <option value="1HZ150V">Volatility 150 (1s)</option>
+                        <option value="1HZ250V">Volatility 250 (1s)</option>
+                    </optgroup>
+                    <optgroup label="Jump Indices">
+                        <option value="JD10">Jump 10 Index</option>
+                        <option value="JD25">Jump 25 Index</option>
+                        <option value="JD50">Jump 50 Index</option>
+                        <option value="JD75">Jump 75 Index</option>
+                        <option value="JD100">Jump 100 Index</option>
+                    </optgroup>
                 </select>
             </div>
             <div>
@@ -165,14 +218,18 @@
                 </select>
             </div>
         </div>
-        <div class="control-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="control-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
             <div>
                 <label>STAKE ($)</label>
                 <input type="number" id="stake" value="0.35" step="0.01">
             </div>
             <div>
-                <label>DURATION (T)</label>
+                <label>DUR (T)</label>
                 <input type="number" id="duration" value="1" min="1" max="10">
+            </div>
+            <div>
+                <label>BULK (X)</label>
+                <input type="number" id="bulk" value="1" min="1" max="10">
             </div>
         </div>
 
@@ -181,10 +238,9 @@
         <div class="control-group">
             <label>AI MODE</label>
             <select id="aiMode">
-                <option value="balanced">Neural Balanced</option>
+                <option value="adaptive" selected>Fully Adaptive (Omega)</option>
                 <option value="conservative">Safe Predictor</option>
                 <option value="aggressive">High Frequency</option>
-                <option value="adaptive" selected>Fully Adaptive (Omega)</option>
             </select>
         </div>
         <button id="buyOver" class="btn btn-success" disabled>BUY OVER</button>
@@ -201,19 +257,53 @@
     </div>
 
     <div class="main-view">
-        <div class="card">
+        <div class="card freq-card">
             <div class="card-title">DIGIT FREQUENCY (100) <span style="font-size: 8px; color: var(--accent);">CLICK TO SET BARRIER</span></div>
             <div class="digit-grid" id="digitFrequency"></div>
         </div>
 
-        <div class="card">
+        <div class="card feed-card">
             <div class="card-title">LIVE OMEGA FEED <span id="active-ai-mode-label" class="badge badge-omega">Neural</span></div>
             <div id="log" class="activity-log"></div>
         </div>
 
-        <div class="card" style="flex: 1; min-height: 160px;">
+        <div class="card accuracy-card">
             <div class="card-title">PREDICTION ACCURACY</div>
-            <div style="flex:1; position:relative;"><canvas id="accuracyChart"></canvas></div>
+            <div id="accuracyChartContainer">
+                <canvas id="accuracyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card module-card">
+            <div class="card-title">PRESSURE VELOCITY [1] <span class="badge" style="background:var(--accent); color:white;">Momentum</span></div>
+            <div class="module-content" id="core1Box">
+                <div class="module-val" id="core1Val">--</div>
+                <div class="module-label" id="core1Label">Waiting for ticks...</div>
+            </div>
+        </div>
+
+        <div class="card module-card">
+            <div class="card-title">CLUSTER DETECTION [2] <span class="badge" style="background:var(--poof); color:white;">Zoning</span></div>
+            <div class="module-content" id="core2Box">
+                <div class="module-val" id="core2Val">--</div>
+                <div class="module-label" id="core2Label">Scanning...</div>
+            </div>
+        </div>
+
+        <div class="card module-card">
+            <div class="card-title">PATTERN CORRELATION [3] <span class="badge" style="background:var(--success); color:white;">Logic</span></div>
+            <div class="module-content" id="core3Box">
+                <div class="module-val" id="core3Val">--</div>
+                <div class="module-label" id="core3Label">Sync Check</div>
+            </div>
+        </div>
+
+        <div class="card module-card">
+            <div class="card-title">SMART RECOVERY [4] <span class="badge" style="background:var(--omega); color:white;">Safety</span></div>
+            <div class="module-content" id="core4Box">
+                <div class="module-val" id="core4Val">--</div>
+                <div class="module-label" id="core4Label">Virtual Tracking</div>
+            </div>
         </div>
     </div>
 
@@ -223,8 +313,8 @@
             <span id="aiConfidence" class="stat-val" style="color:var(--omega)">0.0%</span>
         </div>
         <div class="ai-stat">
-            <span class="stat-label">AI Recommendation</span>
-            <span id="recBarrier" class="stat-val">--</span>
+            <span class="stat-label">AI Status</span>
+            <span id="aiStatusDisplay" class="stat-val" style="color:var(--success); font-size: 13px;">AI STANDBY</span>
         </div>
         <div class="ai-stat">
             <span class="stat-label">Session Profit</span>
@@ -240,7 +330,7 @@
             <div class="tx-row"><span class="tx-label">Result:</span> <span id="txResult">-</span></div>
         </div>
 
-        <div class="card" style="margin-top: 1rem; padding: 0.5rem; background: #1e1b4b; border: 1px solid #312e81;">
+        <div class="card" style="margin-top: 1rem; padding: 0.5rem; background: #1e1b4b; border: 1px solid #312e81; height: 110px; flex-shrink: 0;">
             <div class="card-title" style="color: #c4b5fd; margin-bottom: 5px;">OMEGA INSIGHT</div>
             <p id="aiInsight" style="font-size: 10px; line-height: 1.4; color: #a5b4fc; margin: 0; min-height: 28px;">Waiting for connection...</p>
             
@@ -259,6 +349,15 @@
                 </div>
             </div>
         </div>
+
+        <div class="history-card">
+            <div class="card-title">
+                TX HISTORY
+                <button class="btn-clear" id="clearHistory">CLEAR</button>
+            </div>
+            <div class="history-list" id="historyList">
+            </div>
+        </div>
     </div>
 </div>
 
@@ -272,9 +371,15 @@ let accuracyChart;
 let txResetTimer = null;
 let smoothedConf = 0;
 let poofConf = 0;
+let virtualWins = 0;
+let virtualLosses = 0;
 
-// Initialize Digit Grid UI
+// COOLDOWN LOGIC
+let tickCounter = 0;
+let lastTradeTick = -20; 
+
 const digitFreqContainer = document.getElementById('digitFrequency');
+// GENERATE DIGIT GRID 0-9
 for(let i=0; i<=9; i++) {
     const div = document.createElement('div');
     div.className = 'digit-box';
@@ -291,6 +396,42 @@ for(let i=0; i<=9; i++) {
     digitFreqContainer.appendChild(div);
 }
 
+function fullDataReset() {
+    ticks = [];
+    stats = Array(10).fill(0);
+    smoothedConf = 0;
+    poofConf = 0;
+    tickCounter = 0;
+    lastTradeTick = -20;
+    document.getElementById('log').innerHTML = '';
+    for(let i=0; i<=9; i++) {
+        const bar = document.getElementById(`bar-${i}`);
+        const text = document.getElementById(`pct-${i}`);
+        if (bar) bar.style.height = `0%`;
+        if (text) text.innerText = `0%`;
+        document.getElementById(`digit-${i}`).classList.remove('active-tick', 'win-highlight');
+    }
+    document.getElementById('aiConfidence').innerText = '0.0%';
+    document.getElementById('poofValue').innerText = '0.0%';
+    document.getElementById('rsiVal').innerText = '--';
+    document.getElementById('volVal').innerText = '--';
+    document.getElementById('trendVal').innerText = '--';
+    document.getElementById('aiStatusDisplay').innerText = "AI STANDBY";
+    
+    document.getElementById('core1Val').innerText = '--';
+    document.getElementById('core2Val').innerText = '--';
+    document.getElementById('core3Val').innerText = '--';
+    document.getElementById('core4Val').innerText = '--';
+    
+    document.getElementById('aiInsight').innerText = "Data reset. Waiting for stream...";
+    if(accuracyChart) {
+        accuracyChart.data.labels = [];
+        accuracyChart.data.datasets[0].data = [];
+        accuracyChart.update();
+    }
+    addLog("Session Data Purged", "warning");
+}
+
 function safeSend(data) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(data));
@@ -303,7 +444,16 @@ function initCharts() {
     accuracyChart = new Chart(ctx, {
         type: 'line',
         data: { labels: [], datasets: [{ data: [], borderColor: '#f472b6', borderWidth: 2, tension: 0.4, pointRadius: 2, fill: true, backgroundColor: 'rgba(244, 114, 182, 0.1)' }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, x: { display: false } }, plugins: { legend: { display: false } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            animation: { duration: 0 },
+            scales: { 
+                y: { min: 0, max: 100, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, 
+                x: { display: false } 
+            }, 
+            plugins: { legend: { display: false } } 
+        }
     });
 }
 
@@ -326,6 +476,53 @@ function resetTxUI() {
     document.getElementById('txResult').innerText = "-";
     document.getElementById('txResult').style.color = 'var(--text-main)';
 }
+
+function addToHistory(contract) {
+    const list = document.getElementById('historyList');
+    const item = document.createElement('div');
+    const profit = parseFloat(contract.profit);
+    const isWin = profit > 0;
+    const type = contract.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
+    
+    item.className = `history-item ${isWin ? 'win' : 'loss'}`;
+    const marketSelect = document.getElementById('market');
+    const marketName = marketSelect.options[marketSelect.selectedIndex].text;
+
+    item.innerHTML = `
+        <div class="hist-header">
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? '+' : ''}${profit.toFixed(2)} USD</span>
+        </div>
+        <div class="hist-body">
+            <div><span style="opacity:0.6">Stake:</span> $${contract.buy_price}</div>
+            <div><span style="opacity:0.6">Market:</span> ${marketName.split(' ')[0]}</div>
+            <div><span style="opacity:0.6">Entry:</span> ${contract.entry_tick_display_value}</div>
+            <div><span style="opacity:0.6">Exit:</span> ${contract.exit_tick_display_value}</div>
+        </div>
+        <div class="hist-meta">
+            <span>ID: ${contract.contract_id}</span>
+            <span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+        </div>
+    `;
+    list.prepend(item);
+    if(list.childNodes.length > 20) list.lastChild.remove();
+}
+
+document.getElementById('clearHistory').onclick = () => {
+    document.getElementById('historyList').innerHTML = '';
+    addLog("History Cleared", "info");
+};
+
+document.getElementById('market').addEventListener('change', () => {
+    if(ws && ws.readyState === WebSocket.OPEN) {
+        const symbol = document.getElementById('market').value;
+        const name = document.getElementById('market').options[document.getElementById('market').selectedIndex].text;
+        addLog(`Switching Market: ${name}`, 'warning');
+        fullDataReset();
+        safeSend({ forget_all: 'ticks' });
+        safeSend({ ticks: symbol, subscribe: 1 });
+    }
+});
 
 function updateTxUI(data) {
     if (txResetTimer) clearTimeout(txResetTimer);
@@ -376,7 +573,6 @@ function toggleConnection() {
             btn.innerText = "DISCONNECT";
             btn.classList.replace('btn-primary', 'btn-error');
             
-            // Subscriptions
             safeSend({ ticks: document.getElementById('market').value, subscribe: 1 });
             safeSend({ balance: 1, subscribe: 1 });
             safeSend({ proposal_open_contract: 1, subscribe: 1 });
@@ -402,7 +598,11 @@ function toggleConnection() {
                 const p = parseFloat(c.profit);
                 sessionProfit += p; totalTrades++;
                 if(p > 0) winCount++;
+                
+                if (p < 0) virtualLosses++; else { virtualWins++; virtualLosses = 0; }
+                
                 updateTxUI({ status: "Closed", result: p > 0 ? `WIN +$${p.toFixed(2)}` : `LOSS $${p.toFixed(2)}` });
+                addToHistory(c);
                 updateAccountUI();
             }
         }
@@ -414,6 +614,7 @@ function toggleConnection() {
         btn.classList.replace('btn-error', 'btn-primary');
         document.querySelectorAll('.sidebar .btn:not(#connectBtn)').forEach(b => b.disabled = true);
         isAiRunning = false;
+        fullDataReset();
         document.getElementById('aiInsight').innerText = "Disconnected.";
         addLog("Server Disconnected", "info");
     };
@@ -423,22 +624,26 @@ document.getElementById('connectBtn').onclick = toggleConnection;
 
 function processTick(tick) {
     if (!tick || !tick.quote) return;
-    const quoteStr = tick.quote.toString();
-    const digit = parseInt(quoteStr.slice(-1));
-    
+    const digit = parseInt(tick.quote.toString().slice(-1));
     ticks.push(digit);
     if(ticks.length > 100) ticks.shift();
 
-    // Visual feedback for the latest digit
+    tickCounter++; 
+    
     document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('active-tick'));
     const box = document.getElementById(`digit-${digit}`);
     if (box) box.classList.add('active-tick');
 
-    // Frequency update
-    stats = Array(10).fill(0);
-    ticks.forEach(d => stats[d]++);
+    // CALCULATE FREQUENCY
+    // Ensure all digits 0-9 are reset and recalculated
+    const currentStats = Array(10).fill(0);
+    ticks.forEach(d => {
+        if (d >= 0 && d <= 9) currentStats[d]++;
+    });
+    
     for(let i=0; i<=9; i++) {
-        const pct = (stats[i] / ticks.length) * 100;
+        const count = currentStats[i];
+        const pct = (count / ticks.length) * 100;
         const bar = document.getElementById(`bar-${i}`);
         const text = document.getElementById(`pct-${i}`);
         if (bar) bar.style.height = `${pct}%`;
@@ -446,6 +651,19 @@ function processTick(tick) {
     }
     
     runAIAnalysis();
+    runCoreEngines();
+    
+    const statusEl = document.getElementById('aiStatusDisplay');
+    const ticksLeft = 20 - (tickCounter - lastTradeTick);
+    if (isAiRunning) {
+        if (ticksLeft > 0) {
+            statusEl.innerText = `COOLING DOWN (${ticksLeft}t)`;
+            statusEl.style.color = "var(--warning)";
+        } else {
+            statusEl.innerText = "SCANNING OPPORTUNITY";
+            statusEl.style.color = "var(--success)";
+        }
+    }
 }
 
 function calculateRSI(data, period = 14) {
@@ -458,13 +676,37 @@ function calculateRSI(data, period = 14) {
     return losses === 0 ? 100 : 100 - (100 / (1 + (gains / (losses || 1))));
 }
 
+function runCoreEngines() {
+    if(ticks.length < 20) return;
+    const last5 = ticks.slice(-5);
+    const avg5 = last5.reduce((a,b)=>a+b)/5;
+    const pressure = avg5 > 5 ? "RISING" : "FALLING";
+    document.getElementById('core1Val').innerText = avg5.toFixed(1);
+    document.getElementById('core1Label').innerText = `${pressure} PRESSURE`;
+    
+    const c02 = ticks.slice(-20).filter(d => d<=2).length;
+    const hotZone = c02 > 8 ? "LOW (0-2)" : "NEUTRAL";
+    document.getElementById('core2Val').innerText = hotZone;
+    
+    const rsi = parseFloat(document.getElementById('rsiVal').innerText);
+    let sync = "NEUTRAL";
+    if (pressure === "RISING" && rsi > 60) sync = "SYNCED";
+    if (pressure === "FALLING" && rsi < 40) sync = "SYNCED";
+    document.getElementById('core3Val').innerText = sync;
+    document.getElementById('core3Box').className = `module-content ${sync === 'SYNCED' ? 'module-active' : ''}`;
+
+    const status = virtualLosses > 1 ? "READY TO FIRE" : "MONITORING";
+    document.getElementById('core4Val').innerText = status;
+    document.getElementById('core4Box').className = `module-content ${status === 'READY TO FIRE' ? 'module-active' : ''}`;
+}
+
 function runAIAnalysis() {
-    if(ticks.length < 5) return; // Wait for at least some data
+    if(ticks.length < 20) return; 
     const userBarrier = parseInt(document.getElementById('barrier').value);
     
-    // Indicators
+    // RSI and Volatility calculations
     const rsi = calculateRSI(ticks, 14);
-    const recent = ticks.slice(-15);
+    const recent = ticks.slice(-20);
     const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
     const volatility = Math.sqrt(recent.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / recent.length);
     const trend = (ticks.slice(-10).reduce((a,b)=>a+b, 0)/10) > (ticks.slice(-30).reduce((a,b)=>a+b, 0)/30) ? "BULL" : "BEAR";
@@ -472,36 +714,41 @@ function runAIAnalysis() {
     document.getElementById('rsiVal').innerText = rsi.toFixed(1);
     document.getElementById('volVal').innerText = volatility.toFixed(2);
     document.getElementById('trendVal').innerText = trend;
-    document.getElementById('trendVal').style.color = trend === "BULL" ? 'var(--success)' : 'var(--error)';
 
-    // AI AUTO-DURATION (ADAPTIVE)
-    const autoDuration = volatility > 2.5 ? 1 : volatility > 1.5 ? 2 : 3;
-    document.getElementById('duration').value = autoDuration;
-
-    // POOF SUB-ENGINE (Window: 20)
-    const poofTicks = ticks.slice(-20);
-    const pOver = poofTicks.filter(d => d > userBarrier).length;
-    const pUnder = poofTicks.filter(d => d < userBarrier).length;
-    const pDir = pOver > pUnder ? "OVER" : "UNDER";
-    poofConf = Math.max(pOver, pUnder) / (poofTicks.length || 1) * 100;
+    // POOF SUB-ENGINE IMPROVEMENT: Weight the last 10 ticks double to avoid "stuck" percentages
+    const poofWindow = ticks.slice(-20);
+    let pOverWeight = 0;
+    let pUnderWeight = 0;
+    
+    poofWindow.forEach((d, idx) => {
+        const weight = idx > 10 ? 2 : 1; // More weight to newer data
+        if (d > userBarrier) pOverWeight += weight;
+        if (d < userBarrier) pUnderWeight += weight;
+    });
+    
+    const maxWeight = 30; // 10*1 + 10*2
+    const poofDirection = pOverWeight > pUnderWeight ? "OVER" : "UNDER";
+    poofConf = Math.min((Math.max(pOverWeight, pUnderWeight) / maxWeight) * 100, 100);
+    
     document.getElementById('poofValue').innerText = `${poofConf.toFixed(1)}%`;
-    document.getElementById('poofPrediction').innerText = `Poof: ${pDir} ${userBarrier}`;
+    document.getElementById('poofPrediction').innerText = `Poof: ${poofDirection} ${userBarrier}`;
 
-    // MAIN OMEGA AI
-    const overCount = ticks.slice(-25).filter(d => d > userBarrier).length;
-    const underCount = ticks.slice(-25).filter(d => d < userBarrier).length;
-    let targetDir = overCount > underCount ? "over" : "under";
-    let baseConfidence = (Math.max(overCount, underCount) / 25) * 100;
+    // OMEGA ENGINE IMPROVEMENT: Dynamic Probabilty using Exponential Smoothing
+    const omegaWindow = ticks.slice(-50);
+    const overCount = omegaWindow.filter(d => d > userBarrier).length;
+    const underCount = omegaWindow.filter(d => d < userBarrier).length;
     
-    // Logic Boosters
-    if (targetDir === "over" && trend === "BULL") baseConfidence += 5;
-    if (targetDir === "under" && trend === "BEAR") baseConfidence += 5;
+    let baseProb = (Math.max(overCount, underCount) / 50) * 100;
     
-    smoothedConf = (smoothedConf * 0.5) + (baseConfidence * 0.5);
+    // Add "Micro-Momentum" filter to prevent stagnation
+    const microTrend = ticks.slice(-5).filter(d => (poofDirection === "OVER" ? d > userBarrier : d < userBarrier)).length;
+    const momentumMultiplier = (microTrend / 5); // 0 to 1
+    
+    // Blend base probability with momentum to make it move more naturally
+    let dynamicConf = (baseProb * 0.7) + (momentumMultiplier * 30);
+    
+    smoothedConf = Math.min(dynamicConf, 100);
     document.getElementById('aiConfidence').innerText = `${smoothedConf.toFixed(1)}%`;
-    
-    document.getElementById('recBarrier').innerText = `${targetDir.toUpperCase()} ${userBarrier}`;
-    document.getElementById('aiInsight').innerText = smoothedConf > 80 ? `SIGNAL STRENGTH HIGH` : "Waiting for pattern overlap...";
 }
 
 function updateAccountUI() {
@@ -510,13 +757,16 @@ function updateAccountUI() {
     if(accuracyChart) {
         accuracyChart.data.labels.push("");
         accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
-        if(accuracyChart.data.labels.length > 25) { accuracyChart.data.labels.shift(); accuracyChart.data.datasets[0].data.shift(); }
+        if(accuracyChart.data.labels.length > 30) { 
+            accuracyChart.data.labels.shift(); 
+            accuracyChart.data.datasets[0].data.shift(); 
+        }
         accuracyChart.update('none');
     }
 }
 
 async function executeTrade(direction) {
-    if(!ws || ws.readyState !== WebSocket.OPEN || isTradeActive) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
     const stake = parseFloat(document.getElementById('stake').value);
     const barrier = document.getElementById('barrier').value;
     const duration = parseInt(document.getElementById('duration').value);
@@ -530,7 +780,6 @@ async function executeTrade(direction) {
             symbol: document.getElementById('market').value, barrier: barrier.toString()
         }
     });
-    addLog(`Sent ${direction.toUpperCase()} @ ${barrier} (${duration}T)`, "info");
 }
 
 document.getElementById('buyOver').onclick = () => executeTrade('over');
@@ -542,37 +791,47 @@ document.getElementById('aiBtn').onclick = () => {
     if(isAiRunning) {
         btn.innerText = "STOP AI ENGINE";
         btn.classList.replace('btn-omega', 'btn-error');
-        addLog("AI Engine Started", "warning");
+        addLog("AI Engine Started (Turbo Multi-Entry Enabled)", "warning");
         autoLoop();
     } else {
         btn.innerText = "START AI ENGINE";
         btn.classList.replace('btn-error', 'btn-omega');
+        document.getElementById('aiStatusDisplay').innerText = "AI STANDBY";
         addLog("AI Engine Stopped", "info");
     }
 };
 
 async function autoLoop() {
     if(!isAiRunning) return;
-    const conf = smoothedConf;
-    const pConf = poofConf;
-    const rsi = parseFloat(document.getElementById('rsiVal').innerText);
-    const trend = document.getElementById('trendVal').innerText;
-    const userBarrier = document.getElementById('barrier').value;
-    const recText = document.getElementById('recBarrier').innerText;
     
-    // Optimized Entry Condition: Omega (Window 100) + Poof (Window 20) Agreement
-    if(conf >= 85 && pConf >= 70 && !isTradeActive) {
-        const dir = recText.includes("OVER") ? "over" : "under";
+    const ticksSinceLast = tickCounter - lastTradeTick;
+    const conf = smoothedConf;
+    const poofVal = poofConf;
+    const bulk = parseInt(document.getElementById('bulk').value) || 1;
+    
+    // Check for high confidence and ensure cooldown has passed
+    // Threshold adjusted to 85% for better entry frequency with improved logic
+    if(conf >= 85 && poofVal >= 70 && !isTradeActive && ticksSinceLast >= 20) {
+        const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
         
-        // Safety trend filter
-        let trendSafe = (dir === 'over' && trend === 'BULL') || (dir === 'under' && trend === 'BEAR');
+        addLog(`SIGNAL DETECTED: ${conf.toFixed(1)}% Confidence. Turbo-Bulk X${bulk} firing...`, "success");
+        
+        lastTradeTick = tickCounter; 
 
-        if(trendSafe) {
+        // HIGH SPEED BULK EXECUTION
+        if (bulk > 1) {
+            for(let i=0; i<bulk; i++) {
+                executeTrade(dir);
+                await new Promise(r => setTimeout(r, 100));
+            }
+        } else {
             executeTrade(dir);
-            await new Promise(r => setTimeout(r, 6000)); // Delay after trade
         }
+        
+        addLog(`Sequence Complete. Cooling down...`, "warning");
     }
-    await new Promise(r => setTimeout(r, 400));
+    
+    await new Promise(r => setTimeout(r, 100));
     if(isAiRunning) autoLoop();
 }
 </script>
