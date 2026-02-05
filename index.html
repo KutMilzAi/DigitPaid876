@@ -150,13 +150,10 @@
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
         .badge-omega { background: var(--omega); color: #000; }
 
-        #accuracyChartContainer { position: relative; height: 100%; width: 100%; }
+        .boost-bar { width: 100%; height: 4px; background: #312e81; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        .boost-fill { height: 100%; width: 0%; background: var(--omega); transition: width 0.3s ease; }
 
-        @media (max-width: 1000px) {
-            .container { grid-template-columns: 1fr; height: auto; overflow: visible; }
-            body { overflow: auto; }
-            .sidebar, .ai-panel { width: 100%; }
-        }
+        #accuracyChartContainer { position: relative; height: 100%; width: 100%; }
     </style>
 </head>
 <body>
@@ -173,7 +170,11 @@
     <div class="sidebar">
         <div class="control-group">
             <label>DERIV API TOKEN</label>
-            <input type="password" id="apiToken" placeholder="Token...">
+            <input type="password" id="apiToken" placeholder="Enter Deriv Token...">
+        </div>
+        <div class="control-group">
+            <label>BOT ACCESS KEY</label>
+            <input type="password" id="botPassword" placeholder="Enter 3-digit key...">
         </div>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;" class="control-group">
             <div>
@@ -263,7 +264,7 @@
         </div>
 
         <div class="card feed-card">
-            <div class="card-title">LIVE OMEGA FEED <span id="active-ai-mode-label" class="badge badge-omega">Neural</span></div>
+            <div class="card-title">LIVE OMEGA FEED <span id="active-ai-mode-label" class="badge badge-omega">Neural Boost</span></div>
             <div id="log" class="activity-log"></div>
         </div>
 
@@ -275,34 +276,34 @@
         </div>
 
         <div class="card module-card">
-            <div class="card-title">PRESSURE VELOCITY [1] <span class="badge" style="background:var(--accent); color:white;">Momentum</span></div>
+            <div class="card-title">OMEGA GRAVITY [1] <span class="badge" style="background:var(--omega); color:white;">Gravity</span></div>
             <div class="module-content" id="core1Box">
                 <div class="module-val" id="core1Val">--</div>
-                <div class="module-label" id="core1Label">Waiting for ticks...</div>
+                <div class="module-label" id="core1Label">Analyzing Pull...</div>
             </div>
         </div>
 
         <div class="card module-card">
-            <div class="card-title">CLUSTER DETECTION [2] <span class="badge" style="background:var(--poof); color:white;">Zoning</span></div>
+            <div class="card-title">VELOCITY BOOST [2] <span class="badge" style="background:var(--accent); color:white;">Momentum</span></div>
             <div class="module-content" id="core2Box">
                 <div class="module-val" id="core2Val">--</div>
-                <div class="module-label" id="core2Label">Scanning...</div>
+                <div class="module-label" id="core2Label">Calculating Speed...</div>
             </div>
         </div>
 
         <div class="card module-card">
-            <div class="card-title">PATTERN CORRELATION [3] <span class="badge" style="background:var(--success); color:white;">Logic</span></div>
+            <div class="card-title">PATTERN SYNC [3] <span class="badge" style="background:var(--success); color:white;">Logic</span></div>
             <div class="module-content" id="core3Box">
                 <div class="module-val" id="core3Val">--</div>
-                <div class="module-label" id="core3Label">Sync Check</div>
+                <div class="module-label" id="core3Label">Cross-Checking</div>
             </div>
         </div>
 
         <div class="card module-card">
-            <div class="card-title">SMART RECOVERY [4] <span class="badge" style="background:var(--omega); color:white;">Safety</span></div>
+            <div class="card-title">VOLATILITY FLOOR [4] <span class="badge" style="background:var(--warning); color:black;">Risk</span></div>
             <div class="module-content" id="core4Box">
                 <div class="module-val" id="core4Val">--</div>
-                <div class="module-label" id="core4Label">Virtual Tracking</div>
+                <div class="module-label" id="core4Label">Market Noise</div>
             </div>
         </div>
     </div>
@@ -311,6 +312,7 @@
         <div class="ai-stat">
             <span class="stat-label">Omega AI Confidence</span>
             <span id="aiConfidence" class="stat-val" style="color:var(--omega)">0.0%</span>
+            <div class="boost-bar"><div id="boostFill" class="boost-fill"></div></div>
         </div>
         <div class="ai-stat">
             <span class="stat-label">AI Status</span>
@@ -371,15 +373,14 @@ let accuracyChart;
 let txResetTimer = null;
 let smoothedConf = 0;
 let poofConf = 0;
-let virtualWins = 0;
-let virtualLosses = 0;
 
-// COOLDOWN LOGIC
+// DECAY & COOLDOWN LOGIC
 let tickCounter = 0;
-let lastTradeTick = -20; 
+let lastTradeTick = -10; // Modified to 10
+let lastTickTime = Date.now();
 
+// GENERATE DIGIT GRID
 const digitFreqContainer = document.getElementById('digitFrequency');
-// GENERATE DIGIT GRID 0-9
 for(let i=0; i<=9; i++) {
     const div = document.createElement('div');
     div.className = 'digit-box';
@@ -387,11 +388,9 @@ for(let i=0; i<=9; i++) {
     div.dataset.digit = i;
     div.innerHTML = `<span class="digit-val">${i}</span><span class="digit-pct" id="pct-${i}">0%</span><div class="digit-bar" id="bar-${i}"></div>`;
     div.addEventListener('click', () => {
-        document.getElementById('barrier').value = parseInt(div.dataset.digit);
-        addLog(`Barrier Lock: ${div.dataset.digit}`, 'success');
-        div.style.background = 'var(--accent)';
-        setTimeout(() => div.style.background = '', 200);
-        runAIAnalysis();
+        document.getElementById('barrier').value = i;
+        addLog(`Barrier Set: ${i}`, 'success');
+        runAIAnalysis(); // Force update on click
     });
     digitFreqContainer.appendChild(div);
 }
@@ -402,7 +401,7 @@ function fullDataReset() {
     smoothedConf = 0;
     poofConf = 0;
     tickCounter = 0;
-    lastTradeTick = -20;
+    lastTradeTick = -10;
     document.getElementById('log').innerHTML = '';
     for(let i=0; i<=9; i++) {
         const bar = document.getElementById(`bar-${i}`);
@@ -411,25 +410,6 @@ function fullDataReset() {
         if (text) text.innerText = `0%`;
         document.getElementById(`digit-${i}`).classList.remove('active-tick', 'win-highlight');
     }
-    document.getElementById('aiConfidence').innerText = '0.0%';
-    document.getElementById('poofValue').innerText = '0.0%';
-    document.getElementById('rsiVal').innerText = '--';
-    document.getElementById('volVal').innerText = '--';
-    document.getElementById('trendVal').innerText = '--';
-    document.getElementById('aiStatusDisplay').innerText = "AI STANDBY";
-    
-    document.getElementById('core1Val').innerText = '--';
-    document.getElementById('core2Val').innerText = '--';
-    document.getElementById('core3Val').innerText = '--';
-    document.getElementById('core4Val').innerText = '--';
-    
-    document.getElementById('aiInsight').innerText = "Data reset. Waiting for stream...";
-    if(accuracyChart) {
-        accuracyChart.data.labels = [];
-        accuracyChart.data.datasets[0].data = [];
-        accuracyChart.update();
-    }
-    addLog("Session Data Purged", "warning");
 }
 
 function safeSend(data) {
@@ -445,8 +425,7 @@ function initCharts() {
         type: 'line',
         data: { labels: [], datasets: [{ data: [], borderColor: '#f472b6', borderWidth: 2, tension: 0.4, pointRadius: 2, fill: true, backgroundColor: 'rgba(244, 114, 182, 0.1)' }] },
         options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
+            responsive: true, maintainAspectRatio: false, 
             animation: { duration: 0 },
             scales: { 
                 y: { min: 0, max: 100, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 9 } } }, 
@@ -468,62 +447,6 @@ function addLog(msg, type = 'info') {
     if(log.childNodes.length > 50) log.lastChild.remove();
 }
 
-function resetTxUI() {
-    document.getElementById('txStatus').innerText = "Idle";
-    document.getElementById('txEntry').innerText = "-";
-    document.getElementById('txTick').innerText = "-";
-    document.getElementById('txTime').innerText = "-";
-    document.getElementById('txResult').innerText = "-";
-    document.getElementById('txResult').style.color = 'var(--text-main)';
-}
-
-function addToHistory(contract) {
-    const list = document.getElementById('historyList');
-    const item = document.createElement('div');
-    const profit = parseFloat(contract.profit);
-    const isWin = profit > 0;
-    const type = contract.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
-    
-    item.className = `history-item ${isWin ? 'win' : 'loss'}`;
-    const marketSelect = document.getElementById('market');
-    const marketName = marketSelect.options[marketSelect.selectedIndex].text;
-
-    item.innerHTML = `
-        <div class="hist-header">
-            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
-            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? '+' : ''}${profit.toFixed(2)} USD</span>
-        </div>
-        <div class="hist-body">
-            <div><span style="opacity:0.6">Stake:</span> $${contract.buy_price}</div>
-            <div><span style="opacity:0.6">Market:</span> ${marketName.split(' ')[0]}</div>
-            <div><span style="opacity:0.6">Entry:</span> ${contract.entry_tick_display_value}</div>
-            <div><span style="opacity:0.6">Exit:</span> ${contract.exit_tick_display_value}</div>
-        </div>
-        <div class="hist-meta">
-            <span>ID: ${contract.contract_id}</span>
-            <span>${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
-        </div>
-    `;
-    list.prepend(item);
-    if(list.childNodes.length > 20) list.lastChild.remove();
-}
-
-document.getElementById('clearHistory').onclick = () => {
-    document.getElementById('historyList').innerHTML = '';
-    addLog("History Cleared", "info");
-};
-
-document.getElementById('market').addEventListener('change', () => {
-    if(ws && ws.readyState === WebSocket.OPEN) {
-        const symbol = document.getElementById('market').value;
-        const name = document.getElementById('market').options[document.getElementById('market').selectedIndex].text;
-        addLog(`Switching Market: ${name}`, 'warning');
-        fullDataReset();
-        safeSend({ forget_all: 'ticks' });
-        safeSend({ ticks: symbol, subscribe: 1 });
-    }
-});
-
 function updateTxUI(data) {
     if (txResetTimer) clearTimeout(txResetTimer);
     if (data.status) document.getElementById('txStatus').innerText = data.status;
@@ -534,55 +457,66 @@ function updateTxUI(data) {
         const el = document.getElementById('txResult');
         el.innerText = data.result;
         el.style.color = data.result.includes('WIN') ? 'var(--success)' : 'var(--error)';
-        if(data.result.includes('WIN')) {
-            const lastD = parseInt(document.getElementById('txTick').innerText.slice(-1));
+        txResetTimer = setTimeout(() => {
             document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('win-highlight'));
-            document.getElementById(`digit-${lastD}`)?.classList.add('win-highlight');
-        }
-        txResetTimer = setTimeout(resetTxUI, 5000);
+            document.getElementById('txStatus').innerText = "Idle";
+            document.getElementById('txEntry').innerText = "-";
+            document.getElementById('txTick').innerText = "-";
+            document.getElementById('txTime').innerText = "-";
+            document.getElementById('txResult').innerText = "-";
+            document.getElementById('txResult').style.color = 'var(--text-main)';
+        }, 5000);
     }
 }
 
-function toggleConnection() {
+function addToHistory(contract) {
+    const list = document.getElementById('historyList');
+    const item = document.createElement('div');
+    const profit = parseFloat(contract.profit);
+    const isWin = profit > 0;
+    const type = contract.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
+    item.className = `history-item ${isWin ? 'win' : 'loss'}`;
+    item.innerHTML = `
+        <div class="hist-header">
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? '+' : ''}${profit.toFixed(2)} USD</span>
+        </div>
+        <div class="hist-body">
+            <div>Stake: $${contract.buy_price}</div>
+            <div>Entry: ${contract.entry_tick_display_value}</div>
+        </div>
+    `;
+    list.prepend(item);
+    if(list.childNodes.length > 15) list.lastChild.remove();
+}
+
+document.getElementById('connectBtn').onclick = () => {
     const btn = document.getElementById('connectBtn');
-    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) { 
-        ws.close(); 
-        return; 
-    }
+    if (ws && ws.readyState < 2) { ws.close(); return; }
     
     const token = document.getElementById('apiToken').value.trim();
     if(!token) return addLog("API Token required", "error");
-    
-    addLog("Connecting to server...", "warning");
+    if(document.getElementById('botPassword').value !== "641") return addLog("Invalid Access Key", "error");
+
+    addLog("Connecting...", "warning");
     ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
     
-    ws.onopen = () => {
-        safeSend({ authorize: token });
-    };
-    
+    ws.onopen = () => safeSend({ authorize: token });
     ws.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
-        if(data.error) {
-            addLog(data.error.message, "error");
-            if (data.error.code === 'AuthorizationRequired') ws.close();
-            return;
-        }
+        if(data.error) return addLog(data.error.message, "error");
         
         if(data.msg_type === 'authorize') {
             document.getElementById('connectionStatus').classList.add('online');
             btn.innerText = "DISCONNECT";
             btn.classList.replace('btn-primary', 'btn-error');
-            
             safeSend({ ticks: document.getElementById('market').value, subscribe: 1 });
             safeSend({ balance: 1, subscribe: 1 });
             safeSend({ proposal_open_contract: 1, subscribe: 1 });
-            
             initCharts();
             document.querySelectorAll('.sidebar .btn').forEach(b => b.disabled = false);
-            addLog("Authorization Successful", "success");
-            document.getElementById('aiInsight').innerText = "Streaming Market Data...";
+            addLog("System Online", "success");
         }
-        
         if(data.msg_type === 'balance') document.getElementById('balanceDisplay').innerText = `${data.balance.currency} ${data.balance.balance}`;
         if(data.msg_type === 'tick') processTick(data.tick);
         if(data.msg_type === 'buy') { 
@@ -591,23 +525,22 @@ function toggleConnection() {
         }
         if(data.msg_type === 'proposal_open_contract') {
             const c = data.proposal_open_contract;
-            if(!c) return;
-            updateTxUI({ entry: c.entry_tick_display_value, tick: c.exit_tick_display_value || "..." });
-            if(c.is_sold) {
+            
+            // Real-time updates for Live Transaction card
+            if (c.entry_tick_display_value) document.getElementById('txEntry').innerText = c.entry_tick_display_value;
+            if (c.exit_tick_display_value) document.getElementById('txTick').innerText = c.exit_tick_display_value;
+
+            if(c?.is_sold) {
                 isTradeActive = false;
                 const p = parseFloat(c.profit);
                 sessionProfit += p; totalTrades++;
                 if(p > 0) winCount++;
-                
-                if (p < 0) virtualLosses++; else { virtualWins++; virtualLosses = 0; }
-                
-                updateTxUI({ status: "Closed", result: p > 0 ? `WIN +$${p.toFixed(2)}` : `LOSS $${p.toFixed(2)}` });
+                updateTxUI({ result: p > 0 ? `WIN +$${p.toFixed(2)}` : `LOSS $${p.toFixed(2)}` });
                 addToHistory(c);
                 updateAccountUI();
             }
         }
     };
-    
     ws.onclose = () => {
         document.getElementById('connectionStatus').classList.remove('online');
         btn.innerText = "CONNECT ACCOUNT";
@@ -615,12 +548,8 @@ function toggleConnection() {
         document.querySelectorAll('.sidebar .btn:not(#connectBtn)').forEach(b => b.disabled = true);
         isAiRunning = false;
         fullDataReset();
-        document.getElementById('aiInsight').innerText = "Disconnected.";
-        addLog("Server Disconnected", "info");
     };
-}
-
-document.getElementById('connectBtn').onclick = toggleConnection;
+};
 
 function processTick(tick) {
     if (!tick || !tick.quote) return;
@@ -629,32 +558,26 @@ function processTick(tick) {
     if(ticks.length > 100) ticks.shift();
 
     tickCounter++; 
+    lastTickTime = Date.now();
     
     document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('active-tick'));
-    const box = document.getElementById(`digit-${digit}`);
-    if (box) box.classList.add('active-tick');
+    document.getElementById(`digit-${digit}`)?.classList.add('active-tick');
 
-    // CALCULATE FREQUENCY
-    // Ensure all digits 0-9 are reset and recalculated
     const currentStats = Array(10).fill(0);
-    ticks.forEach(d => {
-        if (d >= 0 && d <= 9) currentStats[d]++;
-    });
-    
+    ticks.forEach(d => currentStats[d]++);
     for(let i=0; i<=9; i++) {
-        const count = currentStats[i];
-        const pct = (count / ticks.length) * 100;
-        const bar = document.getElementById(`bar-${i}`);
-        const text = document.getElementById(`pct-${i}`);
-        if (bar) bar.style.height = `${pct}%`;
-        if (text) text.innerText = `${pct.toFixed(0)}%`;
+        const pct = (currentStats[i] / ticks.length) * 100;
+        document.getElementById(`bar-${i}`).style.height = `${pct}%`;
+        document.getElementById(`pct-${i}`).innerText = `${pct.toFixed(0)}%`;
     }
     
+    // Engine calculations run ALWAYS regardless of Engine Switch
     runAIAnalysis();
     runCoreEngines();
     
     const statusEl = document.getElementById('aiStatusDisplay');
-    const ticksLeft = 20 - (tickCounter - lastTradeTick);
+    const ticksLeft = (isAiRunning ? 10 : 0) - (tickCounter - lastTradeTick); // Reduced to 10
+    
     if (isAiRunning) {
         if (ticksLeft > 0) {
             statusEl.innerText = `COOLING DOWN (${ticksLeft}t)`;
@@ -663,93 +586,75 @@ function processTick(tick) {
             statusEl.innerText = "SCANNING OPPORTUNITY";
             statusEl.style.color = "var(--success)";
         }
+    } else {
+        statusEl.innerText = "AI STANDBY";
+        statusEl.style.color = "var(--text-dim)";
     }
-}
-
-function calculateRSI(data, period = 14) {
-    if(data.length <= period) return 50;
-    let gains = 0, losses = 0;
-    for(let i = 1; i <= period; i++) {
-        let diff = data[data.length - i] - data[data.length - i - 1];
-        if(diff >= 0) gains += diff; else losses -= diff;
-    }
-    return losses === 0 ? 100 : 100 - (100 / (1 + (gains / (losses || 1))));
-}
-
-function runCoreEngines() {
-    if(ticks.length < 20) return;
-    const last5 = ticks.slice(-5);
-    const avg5 = last5.reduce((a,b)=>a+b)/5;
-    const pressure = avg5 > 5 ? "RISING" : "FALLING";
-    document.getElementById('core1Val').innerText = avg5.toFixed(1);
-    document.getElementById('core1Label').innerText = `${pressure} PRESSURE`;
-    
-    const c02 = ticks.slice(-20).filter(d => d<=2).length;
-    const hotZone = c02 > 8 ? "LOW (0-2)" : "NEUTRAL";
-    document.getElementById('core2Val').innerText = hotZone;
-    
-    const rsi = parseFloat(document.getElementById('rsiVal').innerText);
-    let sync = "NEUTRAL";
-    if (pressure === "RISING" && rsi > 60) sync = "SYNCED";
-    if (pressure === "FALLING" && rsi < 40) sync = "SYNCED";
-    document.getElementById('core3Val').innerText = sync;
-    document.getElementById('core3Box').className = `module-content ${sync === 'SYNCED' ? 'module-active' : ''}`;
-
-    const status = virtualLosses > 1 ? "READY TO FIRE" : "MONITORING";
-    document.getElementById('core4Val').innerText = status;
-    document.getElementById('core4Box').className = `module-content ${status === 'READY TO FIRE' ? 'module-active' : ''}`;
 }
 
 function runAIAnalysis() {
-    if(ticks.length < 20) return; 
-    const userBarrier = parseInt(document.getElementById('barrier').value);
+    if(ticks.length < 10) return; 
+    const barrier = parseInt(document.getElementById('barrier').value);
     
-    // RSI and Volatility calculations
-    const rsi = calculateRSI(ticks, 14);
+    // RSI & Volatility
+    let gains = 0, losses = 0;
+    for(let i = 1; i <= 14 && i < ticks.length; i++) {
+        let diff = ticks[ticks.length - i] - ticks[ticks.length - i - 1];
+        if(diff >= 0) gains += diff; else losses -= diff;
+    }
+    const rsi = losses === 0 ? 100 : 100 - (100 / (1 + (gains / (losses || 1))));
+    
     const recent = ticks.slice(-20);
     const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
     const volatility = Math.sqrt(recent.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / recent.length);
-    const trend = (ticks.slice(-10).reduce((a,b)=>a+b, 0)/10) > (ticks.slice(-30).reduce((a,b)=>a+b, 0)/30) ? "BULL" : "BEAR";
 
     document.getElementById('rsiVal').innerText = rsi.toFixed(1);
     document.getElementById('volVal').innerText = volatility.toFixed(2);
-    document.getElementById('trendVal').innerText = trend;
+    document.getElementById('trendVal').innerText = ticks.slice(-5).reduce((a,b)=>a+b)/5 > mean ? "BULL" : "BEAR";
 
-    // POOF SUB-ENGINE IMPROVEMENT: Weight the last 10 ticks double to avoid "stuck" percentages
-    const poofWindow = ticks.slice(-20);
-    let pOverWeight = 0;
-    let pUnderWeight = 0;
-    
+    // POOF ENGINE
+    const poofWindow = ticks.slice(-25);
+    let pOver = 0, pUnder = 0;
     poofWindow.forEach((d, idx) => {
-        const weight = idx > 10 ? 2 : 1; // More weight to newer data
-        if (d > userBarrier) pOverWeight += weight;
-        if (d < userBarrier) pUnderWeight += weight;
+        const weight = (idx + 1) / 25; 
+        if (d > barrier) pOver += weight; else if (d < barrier) pUnder += weight;
     });
     
-    const maxWeight = 30; // 10*1 + 10*2
-    const poofDirection = pOverWeight > pUnderWeight ? "OVER" : "UNDER";
-    poofConf = Math.min((Math.max(pOverWeight, pUnderWeight) / maxWeight) * 100, 100);
+    const timeGap = (Date.now() - lastTickTime) / 1000;
+    const decay = timeGap * 2.5; 
     
+    poofConf = Math.max(Math.min((Math.max(pOver, pUnder) / (pOver + pUnder || 1)) * 100, 80) - decay, 0); 
     document.getElementById('poofValue').innerText = `${poofConf.toFixed(1)}%`;
-    document.getElementById('poofPrediction').innerText = `Poof: ${poofDirection} ${userBarrier}`;
+    document.getElementById('poofPrediction').innerText = `Poof: ${pOver > pUnder ? "OVER" : "UNDER"} ${barrier}`;
 
-    // OMEGA ENGINE IMPROVEMENT: Dynamic Probabilty using Exponential Smoothing
-    const omegaWindow = ticks.slice(-50);
-    const overCount = omegaWindow.filter(d => d > userBarrier).length;
-    const underCount = omegaWindow.filter(d => d < userBarrier).length;
+    // OMEGA CONFIDENCE - SMOOTHED
+    let rawConf = poofConf + (ticks.slice(-3).filter(d => (pOver > pUnder ? d > barrier : d < barrier)).length / 3 * 15);
+    rawConf -= (volatility > 2.5 ? (volatility * 2) : 0) + (decay * 1.5);
+    rawConf = Math.min(Math.max(rawConf, 0), 98.5);
+
+    // Weighted smoothing to prevent jumping (30% new, 70% old)
+    smoothedConf = (smoothedConf * 0.7) + (rawConf * 0.3);
     
-    let baseProb = (Math.max(overCount, underCount) / 50) * 100;
-    
-    // Add "Micro-Momentum" filter to prevent stagnation
-    const microTrend = ticks.slice(-5).filter(d => (poofDirection === "OVER" ? d > userBarrier : d < userBarrier)).length;
-    const momentumMultiplier = (microTrend / 5); // 0 to 1
-    
-    // Blend base probability with momentum to make it move more naturally
-    let dynamicConf = (baseProb * 0.7) + (momentumMultiplier * 30);
-    
-    smoothedConf = Math.min(dynamicConf, 100);
     document.getElementById('aiConfidence').innerText = `${smoothedConf.toFixed(1)}%`;
+    document.getElementById('boostFill').style.width = `${smoothedConf}%`;
+    
+    if (timeGap < 5) {
+        document.getElementById('aiInsight').innerText = smoothedConf > 80 ? "Cluster detected. High signal quality." : "Scanning patterns...";
+    } else {
+        document.getElementById('aiInsight').innerText = "Data stale. Decay active.";
+    }
 }
+
+function runCoreEngines() {
+    const barrier = parseInt(document.getElementById('barrier').value);
+    const dist = ticks.slice(-10).reduce((acc, d) => acc + Math.abs(d - barrier), 0) / 10;
+    document.getElementById('core1Val').innerText = dist < 2 ? "HIGH" : "LOW";
+    document.getElementById('core2Val').innerText = Math.abs(ticks[ticks.length-1] - ticks[ticks.length-2]).toFixed(1);
+    document.getElementById('core3Val').innerText = poofConf > 60 ? "LOCKED" : "SCAN";
+    document.getElementById('core4Val').innerText = (ticks.slice(-10).reduce((a,b)=>a+b)/10).toFixed(1);
+}
+
+setInterval(() => { if (ticks.length > 5) runAIAnalysis(); }, 500);
 
 function updateAccountUI() {
     document.getElementById('sessionProfit').innerText = `$${sessionProfit.toFixed(2)}`;
@@ -757,27 +662,22 @@ function updateAccountUI() {
     if(accuracyChart) {
         accuracyChart.data.labels.push("");
         accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
-        if(accuracyChart.data.labels.length > 30) { 
-            accuracyChart.data.labels.shift(); 
-            accuracyChart.data.datasets[0].data.shift(); 
-        }
+        if(accuracyChart.data.labels.length > 20) { accuracyChart.data.labels.shift(); accuracyChart.data.datasets[0].data.shift(); }
         accuracyChart.update('none');
     }
 }
 
-async function executeTrade(direction) {
-    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+async function executeTrade(dir) {
+    if(!ws || ws.readyState !== 1) return;
     const stake = parseFloat(document.getElementById('stake').value);
     const barrier = document.getElementById('barrier').value;
-    const duration = parseInt(document.getElementById('duration').value);
-    
     safeSend({
         buy: 1, price: stake,
         parameters: { 
             amount: stake, basis: 'stake', 
-            contract_type: direction === 'over' ? 'DIGITOVER' : 'DIGITUNDER', 
-            currency: 'USD', duration: duration, duration_unit: 't', 
-            symbol: document.getElementById('market').value, barrier: barrier.toString()
+            contract_type: dir === 'over' ? 'DIGITOVER' : 'DIGITUNDER', 
+            currency: 'USD', duration: parseInt(document.getElementById('duration').value), 
+            duration_unit: 't', symbol: document.getElementById('market').value, barrier: barrier.toString()
         }
     });
 }
@@ -788,52 +688,29 @@ document.getElementById('buyUnder').onclick = () => executeTrade('under');
 document.getElementById('aiBtn').onclick = () => {
     isAiRunning = !isAiRunning;
     const btn = document.getElementById('aiBtn');
-    if(isAiRunning) {
-        btn.innerText = "STOP AI ENGINE";
-        btn.classList.replace('btn-omega', 'btn-error');
-        addLog("AI Engine Started (Turbo Multi-Entry Enabled)", "warning");
-        autoLoop();
-    } else {
-        btn.innerText = "START AI ENGINE";
-        btn.classList.replace('btn-error', 'btn-omega');
-        document.getElementById('aiStatusDisplay').innerText = "AI STANDBY";
-        addLog("AI Engine Stopped", "info");
-    }
+    btn.innerText = isAiRunning ? "STOP AI ENGINE" : "START AI ENGINE";
+    btn.classList.toggle('btn-omega', !isAiRunning);
+    btn.classList.toggle('btn-error', isAiRunning);
+    if(isAiRunning) autoLoop();
 };
 
 async function autoLoop() {
     if(!isAiRunning) return;
+    const timeSinceLastTick = (Date.now() - lastTickTime) / 1000;
+    const cdLimit = 10; // Reduced to 10
     
-    const ticksSinceLast = tickCounter - lastTradeTick;
-    const conf = smoothedConf;
-    const poofVal = poofConf;
-    const bulk = parseInt(document.getElementById('bulk').value) || 1;
-    
-    // Check for high confidence and ensure cooldown has passed
-    // Threshold adjusted to 85% for better entry frequency with improved logic
-    if(conf >= 85 && poofVal >= 70 && !isTradeActive && ticksSinceLast >= 20) {
+    if(smoothedConf >= 85 && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit && timeSinceLastTick < 4) {
         const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
-        
-        addLog(`SIGNAL DETECTED: ${conf.toFixed(1)}% Confidence. Turbo-Bulk X${bulk} firing...`, "success");
-        
         lastTradeTick = tickCounter; 
-
-        // HIGH SPEED BULK EXECUTION
-        if (bulk > 1) {
-            for(let i=0; i<bulk; i++) {
-                executeTrade(dir);
-                await new Promise(r => setTimeout(r, 100));
-            }
-        } else {
-            executeTrade(dir);
-        }
-        
-        addLog(`Sequence Complete. Cooling down...`, "warning");
+        const bulk = parseInt(document.getElementById('bulk').value) || 1;
+        for(let i=0; i<bulk; i++) { executeTrade(dir); await new Promise(r => setTimeout(r, 200)); }
     }
-    
-    await new Promise(r => setTimeout(r, 100));
-    if(isAiRunning) autoLoop();
+    setTimeout(() => { if(isAiRunning) autoLoop(); }, 200);
 }
+
+document.getElementById('clearHistory').onclick = () => {
+    document.getElementById('historyList').innerHTML = '';
+};
 </script>
 </body>
 </html>
