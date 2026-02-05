@@ -4,7 +4,79 @@
     <meta charset="UTF-8">
     <title>KUT DIGITS AI - OMEGA TERMINAL</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+/* ================== OMEGA PERSISTENT MEMORY EXTENSION ================== */
+const MEMORY_KEY = "omega_ai_memory_v1";
+const BLOCK_AFTER = 3;
+const BLOCK_TIME = 30 * 60 * 1000;
+
+function loadMemory(){ return JSON.parse(localStorage.getItem(MEMORY_KEY)||"{}"); }
+function saveMemory(m){ localStorage.setItem(MEMORY_KEY, JSON.stringify(m)); }
+
+function getBarrierMemory(market, barrier){
+    const mem = loadMemory();
+    mem[market] ??= {};
+    mem[market][barrier] ??= {wins:0,losses:0,streak:0,lastUpdated:Date.now()};
+    saveMemory(mem);
+    return mem[market][barrier];
+}
+
+function applyDecay(entry){
+    const hrs = (Date.now()-entry.lastUpdated)/3600000;
+    if(hrs<1) return;
+    const f = Math.pow(0.98, hrs);
+    entry.wins*=f; entry.losses*=f;
+    entry.lastUpdated = Date.now();
+}
+
+function isBarrierBlocked(market, barrier){
+    const m = loadMemory();
+    const e = m?.[market]?.[barrier];
+    return e?.blockedUntil && Date.now() < e.blockedUntil;
+}
+
+/* override memoryBias */
+memoryBias = function(barrier){
+    const market = getMarket();
+    const e = getBarrierMemory(market, barrier);
+    applyDecay(e);
+    if(isBarrierBlocked(market, barrier)) return -100;
+    const t = e.wins+e.losses;
+    if(t<3) return 0;
+    const w = e.wins/t;
+    if(w<0.4) return -8;
+    if(w>0.65) return 6;
+    return 0;
+};
+
+/* persist trade outcomes */
+const _origAddToHistory = addToHistory;
+addToHistory = function(contract){
+    _origAddToHistory(contract);
+    const market = getMarket();
+    const barrier = parseInt(contract.barrier);
+    const e = getBarrierMemory(market, barrier);
+    applyDecay(e);
+    if(parseFloat(contract.profit)>0){
+        e.wins++; e.streak=Math.max(1,e.streak+1);
+    }else{
+        e.losses++; e.streak=Math.min(-1,e.streak-1);
+        if(e.streak<=-BLOCK_AFTER) e.blockedUntil=Date.now()+BLOCK_TIME;
+    }
+    e.lastUpdated=Date.now();
+    saveMemory(loadMemory());
+};
+
+/* block AI execution */
+const _origAutoLoop = autoLoop;
+autoLoop = async function(){
+    const b = parseInt(document.getElementById('barrier').value);
+    if(isBarrierBlocked(getMarket(), b)) return;
+    await _origAutoLoop();
+};
+/* ================== END MEMORY EXTENSION ================== */
+
+</script>
     <style>
         :root {
             --bg: #060914;
@@ -445,7 +517,10 @@ document.getElementById('modalBulkX').onclick = async () => {
         return;
     }
     const bulk = parseInt(document.getElementById('bulk').value) || 1;
-    const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
+    let dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
+    const b = parseInt(document.getElementById('barrier').value);
+    if (b === 0) dir = "over";
+    if (b === 9) dir = "under";
     
     addLog(`Executing Bulk ${bulk}x on Digit ${selectedDigit}...`, "warning");
     for(let i=0; i<bulk; i++) {
@@ -641,6 +716,8 @@ document.getElementById('connectBtn').onclick = () => {
             if (c.entry_tick_display_value) document.getElementById('txEntry').innerText = c.entry_tick_display_value;
             if (c.exit_tick_display_value) document.getElementById('txTick').innerText = c.exit_tick_display_value;
             if(c?.is_sold) {
+        const b = parseInt(c.barrier);
+    
                 isTradeActive = false;
                 const p = parseFloat(c.profit);
                 sessionProfit += p; totalTrades++;
@@ -710,7 +787,8 @@ function runAIAnalysis() {
     const poofWindow = ticks.slice(-25);
     let pOver = 0, pUnder = 0;
     poofWindow.forEach((d, idx) => { const weight = (idx + 1) / 25; if (d > barrier) pOver += weight; else if (d < barrier) pUnder += weight; });
-    const decay = ((Date.now() - lastTickTime) / 1000) * 2.5; 
+    let decay = ((Date.now() - lastTickTime) / 1000) * 2.5;
+    if ([0,1,9].includes(barrier)) decay -= 3.5; 
     poofConf = Math.max(Math.min((Math.max(pOver, pUnder) / (pOver + pUnder || 1)) * 100, 80) - decay, 0); 
     document.getElementById('poofValue').innerText = `${poofConf.toFixed(1)}%`;
     document.getElementById('poofPrediction').innerText = `Poof: ${pOver > pUnder ? "OVER" : "UNDER"} ${barrier}`;
@@ -719,7 +797,11 @@ function runAIAnalysis() {
     rawConf = Math.min(Math.max(rawConf - (volatility * 2), 0), 98.5);
     smoothedConf = (smoothedConf * 0.7) + (rawConf * 0.3);
     
+    
+    const memAdj = memoryBias(barrier);
+    smoothedConf = Math.max(Math.min(smoothedConf + memAdj, 99), 0);
     document.getElementById('aiConfidence').innerText = `${smoothedConf.toFixed(1)}%`;
+    
     document.getElementById('boostFill').style.width = `${smoothedConf}%`;
     document.getElementById('aiInsight').innerText = smoothedConf > 80 ? "Cluster detected. High signal quality." : "Scanning patterns...";
 }
@@ -771,6 +853,77 @@ document.getElementById('aiBtn').onclick = () => {
     if(isAiRunning) autoLoop();
 };
 
+
+
+
+// ===== AI MEMORY PER MARKET & BARRIER =====
+let marketMemory = {}; // { MARKET: { barrier: {wins, losses} } }
+
+function getMarket() {
+    return document.getElementById('market').value;
+}
+
+function initMarketMemory(market) {
+    if (!marketMemory[market]) {
+        marketMemory[market] = {};
+        for (let i = 0; i <= 9; i++) {
+            marketMemory[market][i] = { wins: 0, losses: 0 };
+        }
+    }
+}
+
+function memoryBias(barrier) {
+    const market = getMarket();
+    initMarketMemory(market);
+    const m = marketMemory[market][barrier];
+    const total = m.wins + m.losses;
+    if (total < 3) return 0;
+    const winRate = m.wins / total;
+    if (winRate < 0.4) return -8;
+    if (winRate > 0.65) return +6;
+    return 0;
+}
+
+// ===== OMEGA CORE CONFIRMATION LOGIC =====
+function coreConfirmations(mode) {
+    const gravity = document.getElementById('core1Val').innerText;
+    const velocity = parseFloat(document.getElementById('core2Val').innerText);
+    const pattern = document.getElementById('core3Val').innerText;
+    const volatility = parseFloat(document.getElementById('core4Val').innerText);
+
+    const rules = {
+        aggressive: { gravity: "HIGH", velocity: 1.2, pattern: "LOCKED", volatilityMax: 6.5 },
+        adaptive:   { gravity: "HIGH", velocity: 0.9, pattern: "LOCKED", volatilityMax: 5.2 },
+        conservative:{ gravity: "HIGH", velocity: 0.6, pattern: "LOCKED", volatilityMax: 4.0 }
+    };
+
+    const r = rules[mode];
+    return gravity === r.gravity &&
+           velocity >= r.velocity &&
+           pattern === r.pattern &&
+           volatility <= r.volatilityMax;
+}
+
+// ===== CORE DETAIL POPUPS =====
+function showCoreDetail(core) {
+    const map = {
+        1: "OMEGA GRAVITY detects magnetic pull toward the barrier using recent digit clustering.",
+        2: "VELOCITY BOOST measures acceleration between ticks to confirm momentum.",
+        3: "PATTERN SYNC validates Poof engine alignment across windows.",
+        4: "VOLATILITY FLOOR ensures noise is below execution risk threshold."
+    };
+    document.getElementById('txDetailContent').innerHTML =
+        `<div class="detail-row"><span class="detail-val">${map[core]}</span></div>`;
+    document.getElementById('txDetailModal').style.display = 'flex';
+}
+
+document.getElementById('core1Box').onclick = () => showCoreDetail(1);
+document.getElementById('core2Box').onclick = () => showCoreDetail(2);
+document.getElementById('core3Box').onclick = () => showCoreDetail(3);
+document.getElementById('core4Box').onclick = () => showCoreDetail(4);
+
+let backoffTicks = 0;
+
 async function autoLoop() {
     if(!isAiRunning) return;
     const cdLimit = 10;
@@ -779,8 +932,11 @@ async function autoLoop() {
     if (mode === 'aggressive') threshold = 78;
     if (mode === 'conservative') threshold = 91;
 
-    if(smoothedConf >= threshold && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit) {
-        const dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
+    if(smoothedConf >= threshold && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit && coreConfirmations(mode)) {
+        let dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
+    const b = parseInt(document.getElementById('barrier').value);
+    if (b === 0) dir = "over";
+    if (b === 9) dir = "under";
         lastTradeTick = tickCounter; 
         const bulk = parseInt(document.getElementById('bulk').value) || 1;
         for(let i=0; i<bulk; i++) { 
@@ -794,6 +950,78 @@ document.getElementById('clearHistory').onclick = () => {
     document.getElementById('historyList').innerHTML = ''; 
     historyRecords = {};
 };
+
+/* ================== OMEGA PERSISTENT MEMORY EXTENSION ================== */
+const MEMORY_KEY = "omega_ai_memory_v1";
+const BLOCK_AFTER = 3;
+const BLOCK_TIME = 30 * 60 * 1000;
+
+function loadMemory(){ return JSON.parse(localStorage.getItem(MEMORY_KEY)||"{}"); }
+function saveMemory(m){ localStorage.setItem(MEMORY_KEY, JSON.stringify(m)); }
+
+function getBarrierMemory(market, barrier){
+    const mem = loadMemory();
+    mem[market] ??= {};
+    mem[market][barrier] ??= {wins:0,losses:0,streak:0,lastUpdated:Date.now()};
+    saveMemory(mem);
+    return mem[market][barrier];
+}
+
+function applyDecay(entry){
+    const hrs = (Date.now()-entry.lastUpdated)/3600000;
+    if(hrs<1) return;
+    const f = Math.pow(0.98, hrs);
+    entry.wins*=f; entry.losses*=f;
+    entry.lastUpdated = Date.now();
+}
+
+function isBarrierBlocked(market, barrier){
+    const m = loadMemory();
+    const e = m?.[market]?.[barrier];
+    return e?.blockedUntil && Date.now() < e.blockedUntil;
+}
+
+/* override memoryBias */
+memoryBias = function(barrier){
+    const market = getMarket();
+    const e = getBarrierMemory(market, barrier);
+    applyDecay(e);
+    if(isBarrierBlocked(market, barrier)) return -100;
+    const t = e.wins+e.losses;
+    if(t<3) return 0;
+    const w = e.wins/t;
+    if(w<0.4) return -8;
+    if(w>0.65) return 6;
+    return 0;
+};
+
+/* persist trade outcomes */
+const _origAddToHistory = addToHistory;
+addToHistory = function(contract){
+    _origAddToHistory(contract);
+    const market = getMarket();
+    const barrier = parseInt(contract.barrier);
+    const e = getBarrierMemory(market, barrier);
+    applyDecay(e);
+    if(parseFloat(contract.profit)>0){
+        e.wins++; e.streak=Math.max(1,e.streak+1);
+    }else{
+        e.losses++; e.streak=Math.min(-1,e.streak-1);
+        if(e.streak<=-BLOCK_AFTER) e.blockedUntil=Date.now()+BLOCK_TIME;
+    }
+    e.lastUpdated=Date.now();
+    saveMemory(loadMemory());
+};
+
+/* block AI execution */
+const _origAutoLoop = autoLoop;
+autoLoop = async function(){
+    const b = parseInt(document.getElementById('barrier').value);
+    if(isBarrierBlocked(getMarket(), b)) return;
+    await _origAutoLoop();
+};
+/* ================== END MEMORY EXTENSION ================== */
+
 </script>
 </body>
 </html>
