@@ -1,0 +1,214 @@
+/* UI-Only Overhaul (Tailwind-first, safe fallback)
+   - Visual enhancements only: transitions, modals, toggles, confidence bar
+   - NO logic or behavioral changes
+*/
+
+:root{
+  --ui-primary: #06b6d4;
+  --ui-accent: #7c3aed;
+  --ui-card-bg: rgba(2,6,23,0.6);
+  --ui-surface: rgba(255,255,255,0.02);
+  --ui-overlay: rgba(2,6,23,0.6);
+}
+
+/* Smooth global transitions */
+.container-wrapper{ transition: opacity 260ms ease, transform 260ms ease; }
+.container-wrapper.hidden{ opacity:0; transform: translateY(8px); }
+.container-wrapper:not(.hidden){ opacity:1; transform: translateY(0); }
+
+/* Card polish (non-invasive) */
+.card{ border-radius: 14px; transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; }
+.card:hover{ transform: translateY(-4px); }
+
+/* Buttons - visual only */
+button, .btn{ transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease, background-color 140ms ease; }
+button.ui-primary, .btn.ui-primary{ background: linear-gradient(90deg,var(--ui-primary),var(--ui-accent)); color:#fff; box-shadow: 0 10px 30px rgba(124,58,237,0.14); }
+button:disabled, .btn:disabled{ opacity:0.48; cursor:not-allowed; transform:none; }
+
+/* Smooth press feedback */
+button:active, .btn:active{ transform: translateY(1px) scale(.995); }
+
+/* Modal overlay + content animations (apply to known modal IDs via selectors) */
+[id$="-modal"], [role="dialog"]{ --ui-modal-open: 0; transition: opacity 210ms ease, transform 210ms ease; }
+
+/* Generic overlay wrapper if present */
+.ui-modal-overlay{ position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(2,6,23,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index:2000; opacity:0; pointer-events:none; transition: opacity 220ms ease; }
+.ui-modal-overlay.open{ opacity:1; pointer-events:auto; }
+
+.ui-modal-content{ transform: translateY(6px) scale(.98); opacity:0; transition: transform 240ms cubic-bezier(.22,.9,.28,1), opacity 240ms ease; }
+.ui-modal-overlay.open .ui-modal-content, .ui-modal-content.open{ transform: translateY(0) scale(1); opacity:1; }
+
+/* Specific: xdigits modal previously referenced */
+#xdigits-modal, #xdigits-modal > div{ display:flex; align-items:center; justify-content:center; }
+#xdigits-modal .ui-modal-content{ width: 100%; max-width:420px; }
+
+/* Toggle track + knob (visual only) */
+label.relative.inline-flex > div{
+  height: 30px !important;
+  width: 56px !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-radius: 999px !important;
+  position: relative !important;
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+  overflow: hidden !important;
+}
+label.relative.inline-flex > div::after{
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(30px - 6px) !important;
+  height: calc(30px - 6px) !important;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.28);
+  transition: transform 200ms cubic-bezier(.22,.9,.28,1), background-color 160ms ease;
+  transform: translateX(0);
+}
+/* When checked, move knob by computed variable (set by tiny helper script) */
+label.relative.inline-flex > input[type="checkbox"].sr-only.peer:checked + div::after{
+  transform: translateX(var(--knob-translate, 26px));
+}
+label.relative.inline-flex > input[type="checkbox"].sr-only.peer:checked + div{ background: linear-gradient(90deg,var(--ui-primary),var(--ui-accent)); box-shadow: 0 6px 28px rgba(124,58,237,0.12); }
+
+/* Confidence meter polish */
+#confidence-bar{ height: 10px !important; border-radius: 9999px; transition: width 420ms cubic-bezier(.22,.9,.28,1); background: linear-gradient(90deg,#10b981,#06b6d4,#7c3aed); box-shadow: 0 8px 24px rgba(15,23,42,0.12) inset; }
+#confidence-text{ font-weight:800; letter-spacing:0.6px; }
+#confidence-notes{ color: rgba(226,232,240,0.68); font-size:0.92rem; }
+
+/* Locked state visuals (presentational only)
+   - If an element has attribute data-locked="true" the style will indicate locked state
+*/
+[data-locked="true"]{ opacity:0.64; filter: blur(0.4px); pointer-events: auto; }
+[data-locked="true"] .card, [data-locked="true"] .pill{ opacity:0.9; }
+[data-locked="true"] *{ cursor: default !important; }
+
+/* Active card highlight (visual only) */
+.card.active{ box-shadow: 0 22px 60px rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.24) !important; transform: translateY(-6px); }
+.card.dimmed{ opacity:0.64; transform: none; }
+
+/* Popup tooltips and small animations */
+.xdigit-tooltip{ transition: opacity 180ms ease, transform 180ms ease; }
+.xdigit-tooltip.show{ opacity:1; transform: translateY(0); }
+
+/* Fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(4px)){
+  .ui-modal-overlay{ background: rgba(2,6,23,0.75); }
+}
+
+/* Ensure charts / containers remain responsive and not impacted */
+#chart-container{ transition: box-shadow 220ms ease, border-color 220ms ease; }
+
+/* Keep the xdigits panel as a positioning context so popups can appear inside it */
+#xdigits-panel { position: relative; overflow: visible; }
+
+/* Xdigits in-panel popup styling (anchored, compact, and visible) */
+#xdigits-panel #xdigits-modal{ position: absolute !important; inset: 0 !important; background: transparent !important; display: none; align-items: flex-start !important; justify-content: flex-start !important; z-index: 60 !important; pointer-events: none; }
+#xdigits-panel #xdigits-modal.open{ display: flex; pointer-events: auto; }
+/* popup inner card that matches desired centered look */
+#xdigits-panel #xdigits-modal > div, .xdigits-popup-inner{ position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 320px; max-width: calc(100% - 24px); padding: 18px 20px; background: linear-gradient(180deg,#0b1220 0%, #081226 100%); border: 2px solid rgba(59,130,246,0.35); border-radius: 12px; box-shadow: 0 18px 48px rgba(2,6,23,0.7); color: #e6eef8; box-sizing: border-box; }
+
+/* Layout: two action buttons side-by-side and a cancel button full-width below */
+#xdigits-panel #xdigits-modal > div .xdigits-actions{ display:flex; gap:14px; width:100%; justify-content:center; align-items:center; }
+#xdigits-panel #xdigits-modal > div .xdigits-actions button{ flex: none; width:120px; min-height:40px; padding:8px 10px; font-size:15px; border-radius:10px; box-shadow: 0 8px 20px rgba(2,6,23,0.5); }
+#xdigits-panel #xdigits-modal > div .xdigits-cancel{ margin-top:14px; width:100%; background: transparent; color: #e6eef8; border: none; text-align:center; padding:6px 0; font-weight:700; cursor: pointer; }
+
+/* Ensure inner buttons are touch-friendly and readable */
+#xdigits-panel #xdigits-modal button{ font-weight:700; }
+
+@media (max-width:420px){
+  #xdigits-panel #xdigits-modal > div{ width: 94%; left: 3%; top: 6px; }
+}
+
+/* Button color helpers for actions */
+#xdigits-panel #xdigits-modal .xdigits-actions button:first-child{ background: linear-gradient(180deg,#10b981,#059669); color:#fff; border: none; }
+#xdigits-panel #xdigits-modal .xdigits-actions button:last-child{ background: linear-gradient(180deg,#ef4444,#dc2626); color:#fff; border: none; }
+#xdigits-panel #xdigits-modal .xdigits-cancel{ color:#cbd5e1; }
+
+/* Title and message alignment */
+#xdigits-panel #xdigits-modal h3, #xdigits-panel #xdigits-modal p{ text-align:center; margin:0 0 12px 0; }
+#xdigits-panel #xdigits-modal h3{ font-size:20px; font-weight:900; color:#ffd54f; letter-spacing:0.6px; }
+#xdigits-panel #xdigits-modal p{ font-size:13px; color:#e6eef8; opacity:0.9; }
+
+/* Ensure modal is visible when .open class is toggled */
+#xdigits-panel #xdigits-modal.open{ display:flex !important; }
+
+/* Overlay inside modal to catch outside clicks reliably */
+.xdigits-overlay{ position: absolute; inset: 0; background: rgba(2,6,23,0.45); border-radius: 12px; }
+.xdigits-popup-inner{ z-index: 2; position: relative; }
+
+
+/* Accessibility: focus-visible ring for interactive items */
+:focus-visible{ outline: 0; box-shadow: 0 0 0 3px rgba(6,182,212,0.14); }
+
+/* Small helper class to apply fade-in on page load */
+.fade-in-on-load{ opacity:0; transform: translateY(6px); transition: opacity 360ms ease, transform 360ms ease; }
+.fade-in-on-load.loaded{ opacity:1; transform: translateY(0); }
+
+/* =========================
+   Panel spacing & icon alignment
+   - Tighten gutters, align icons and headings across cards
+   - Visual-only adjustments
+   ========================= */
+
+#app-root .card{ padding:16px !important; }
+#app-root .card > h2{ margin-bottom:10px !important; display:flex; align-items:center; gap:10px; font-size:1.05rem; }
+#app-root .card h2 svg, #app-root .card h1 svg { width:20px; height:20px; margin-right:6px; vertical-align:middle; }
+#app-root .card .flex.items-center, #app-root .card .flex.items-start { gap:10px; align-items:center; }
+#app-root .card .space-y-3 > * + * { margin-top:8px !important; }
+#app-root .card .pill{ transform:none; }
+
+/* tighten minor paddings inside common small panels */
+.card .p-3, .card .p-4 { padding:10px !important; }
+
+/* Ensure monospace/code bits align visually */
+#api-url-text, code, .font-mono{ font-size:0.92rem !important; }
+
+/* =========================
+   Unified Toggle Visual Variant
+   - Targets existing label.relative.inline-flex structures
+   - NO logic or DOM changes
+   ========================= */
+
+label.relative.inline-flex{ align-items:center; gap:10px; }
+label.relative.inline-flex > div{
+  height:34px !important;
+  width:64px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border-radius: 999px !important;
+  position: relative !important;
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+  overflow: hidden !important;
+}
+label.relative.inline-flex > div::after{
+  content:'';
+  position:absolute;
+  top:4px !important;
+  left:4px !important;
+  width:26px !important;
+  height:26px !important;
+  background:#fff !important;
+  border-radius:999px !important;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.28) !important;
+  transition: transform 220ms cubic-bezier(.22,.9,.28,1) !important;
+}
+label.relative.inline-flex > input[type="checkbox"].sr-only.peer:checked + div{
+  background: linear-gradient(90deg,var(--ui-primary),var(--ui-accent)) !important;
+  box-shadow: 0 8px 30px rgba(124,58,237,0.12) !important;
+}
+label.relative.inline-flex > input[type="checkbox"].sr-only.peer:checked + div::after{
+  transform: translateX(var(--knob-translate,30px)) !important;
+}
+
+/* Focus ring for toggles */
+label.relative.inline-flex:focus-within > div{ box-shadow: 0 0 0 4px rgba(6,182,212,0.06) !important; }
+
+/* Make disabled toggles visually muted */
+label.relative.inline-flex input[disabled], label.relative.inline-flex .peer[disabled]{ opacity:0.6 !important; }
+
+/* Small helper to ensure toggle labels don't overflow */
+label.relative.inline-flex .text-xs{ max-width:220px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Keep file small and non-invasive; JS logic is untouched */
+
+/* AdvanX inspector removed — use in-page AdvanX section instead */
