@@ -3,80 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>KUT DIGITS AI - OMEGA TERMINAL</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js">
-/* ================== OMEGA PERSISTENT MEMORY EXTENSION ================== */
-const MEMORY_KEY = "omega_ai_memory_v1";
-const BLOCK_AFTER = 3;
-const BLOCK_TIME = 30 * 60 * 1000;
-
-function loadMemory(){ return JSON.parse(localStorage.getItem(MEMORY_KEY)||"{}"); }
-function saveMemory(m){ localStorage.setItem(MEMORY_KEY, JSON.stringify(m)); }
-
-function getBarrierMemory(market, barrier){
-    const mem = loadMemory();
-    mem[market] ??= {};
-    mem[market][barrier] ??= {wins:0,losses:0,streak:0,lastUpdated:Date.now()};
-    saveMemory(mem);
-    return mem[market][barrier];
-}
-
-function applyDecay(entry){
-    const hrs = (Date.now()-entry.lastUpdated)/3600000;
-    if(hrs<1) return;
-    const f = Math.pow(0.98, hrs);
-    entry.wins*=f; entry.losses*=f;
-    entry.lastUpdated = Date.now();
-}
-
-function isBarrierBlocked(market, barrier){
-    const m = loadMemory();
-    const e = m?.[market]?.[barrier];
-    return e?.blockedUntil && Date.now() < e.blockedUntil;
-}
-
-/* override memoryBias */
-memoryBias = function(barrier){
-    const market = getMarket();
-    const e = getBarrierMemory(market, barrier);
-    applyDecay(e);
-    if(isBarrierBlocked(market, barrier)) return -100;
-    const t = e.wins+e.losses;
-    if(t<3) return 0;
-    const w = e.wins/t;
-    if(w<0.4) return -8;
-    if(w>0.65) return 6;
-    return 0;
-};
-
-/* persist trade outcomes */
-const _origAddToHistory = addToHistory;
-addToHistory = function(contract){
-    _origAddToHistory(contract);
-    const market = getMarket();
-    const barrier = parseInt(contract.barrier);
-    const e = getBarrierMemory(market, barrier);
-    applyDecay(e);
-    if(parseFloat(contract.profit)>0){
-        e.wins++; e.streak=Math.max(1,e.streak+1);
-    }else{
-        e.losses++; e.streak=Math.min(-1,e.streak-1);
-        if(e.streak<=-BLOCK_AFTER) e.blockedUntil=Date.now()+BLOCK_TIME;
-    }
-    e.lastUpdated=Date.now();
-    saveMemory(loadMemory());
-};
-
-/* block AI execution */
-const _origAutoLoop = autoLoop;
-autoLoop = async function(){
-    const b = parseInt(document.getElementById('barrier').value);
-    if(isBarrierBlocked(getMarket(), b)) return;
-    await _origAutoLoop();
-};
-/* ================== END MEMORY EXTENSION ================== */
-
-</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="KUT DIGITS AI — Omega Terminal for fast digit trading, live feed and AI-driven predictions.">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #060914;
@@ -148,17 +77,34 @@ autoLoop = async function(){
         .module-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-top: 5px; }
 
         .digit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        /* Micro frequency: ensure all 10 blocks are visible; allow horizontal scroll if container too narrow */
+        .micro-grid { display: grid; grid-template-columns: repeat(10, minmax(30px, 1fr)); gap: 6px; width: 100%; box-sizing: border-box; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+        .micro-block { background: #0b1220; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid transparent; min-width: 30px; display: flex; flex-direction: column; align-items: center; }
+        .micro-digit { font-weight: 800; font-size: 12px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .micro-count { font-size: 11px; color: var(--text-dim); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .micro-pct { font-size: 11px; font-weight: 800; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .micro-bar { background: rgba(255,255,255,0.03); height: 6px; border-radius: 3px; margin-top:6px; overflow: hidden; width: 100%; }
+        .micro-bar-fill { height:100%; width:0%; background: var(--omega); transition: width 0.25s ease; max-width: 100%; display: block; }
+        .micro-block.hot { box-shadow: 0 0 10px rgba(244,114,182,0.12); border-color: var(--omega); }
         .digit-box { 
             background: #1e293b; height: 50px; display: flex; flex-direction: column; align-items: center; 
             justify-content: center; border-radius: 6px; position: relative; overflow: hidden;
             transition: all 0.2s ease; border: 1px solid transparent; cursor: pointer;
         }
+        .digit-hotmark { position: absolute; top: 6px; right: 6px; font-size: 12px; font-weight: 900; pointer-events: none; }
+        .digit-box.spike-glow { box-shadow: 0 0 18px rgba(244,114,182,0.22); border-color: rgba(244,114,182,0.6); transition: box-shadow 0.18s ease, border-color 0.18s ease; }
+        .digit-box.spike-glow .digit-hotmark { transform: scale(1.1); }
+        .digit-box.hot-digit { box-shadow: 0 0 10px rgba(244,114,182,0.12); border-color: rgba(244,114,182,0.35); }
+        .digit-box.cold-digit { box-shadow: 0 0 10px rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.28); }
+        .digit-hotmark.hot { color: rgba(244,114,182,0.95); }
+        .digit-hotmark.cold { color: rgba(59,130,246,0.95); }
         .digit-box:hover { border-color: var(--accent); background: #2d3748; }
         .digit-val { font-size: 14px; font-weight: 800; z-index: 2; pointer-events: none; }
         .digit-pct { font-size: 9px; font-weight: 600; z-index: 2; opacity: 0.8; pointer-events: none; }
         .digit-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--accent); opacity: 0.15; transition: height 0.3s; pointer-events: none; }
         
         .digit-box.active-tick { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.4); z-index: 3; }
+        .digit-box.won { border-color: var(--success); box-shadow: 0 0 14px rgba(16,185,129,0.45); transform: scale(1.04); }
 
         .activity-log { background: #020617; border: 1px solid var(--border); height: 160px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0.6rem; overflow-y: auto; }
         .log-entry { margin-bottom: 4px; display: flex; gap: 8px; border-bottom: 1px solid #1e293b33; padding-bottom: 2px; }
@@ -239,27 +185,27 @@ autoLoop = async function(){
 </header>
 
 <!-- DIGIT ACTION MODAL -->
-<div id="digitModal" class="modal-overlay" onclick="handleOverlayClick(event, 'digitModal')">
+<div id="digitModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" onclick="handleOverlayClick(event, 'digitModal')">
     <div class="modal-content">
         <div class="modal-title" id="modalTitle">ACTION FOR DIGIT 0</div>
         <div class="modal-actions">
-            <button class="modal-btn m-over" id="modalBuyOver">TRADE OVER</button>
-            <button class="modal-btn m-under" id="modalBuyUnder">TRADE UNDER</button>
-            <button class="modal-btn m-bulk" id="modalBulkX">BULK X (OMEGA)</button>
-            <button class="modal-btn m-barrier" id="modalSetBarrier">SET AS BARRIER</button>
-            <button class="modal-btn m-close" onclick="closeDigitModal()">CANCEL</button>
+            <button type="button" class="modal-btn m-over" id="modalBuyOver">TRADE OVER</button>
+            <button type="button" class="modal-btn m-under" id="modalBuyUnder">TRADE UNDER</button>
+            <button type="button" class="modal-btn m-bulk" id="modalBulkX">BULK X (OMEGA)</button>
+            <button type="button" class="modal-btn m-barrier" id="modalSetBarrier">SET AS BARRIER</button>
+            <button type="button" class="modal-btn m-close" onclick="closeDigitModal()">CANCEL</button>
         </div>
     </div>
 </div>
 
 <!-- TRANSACTION DETAIL POPUP -->
-<div id="txDetailModal" class="modal-overlay" onclick="handleOverlayClick(event, 'txDetailModal')">
+<div id="txDetailModal" class="modal-overlay" role="dialog" aria-modal="true" onclick="handleOverlayClick(event, 'txDetailModal')">
     <div class="modal-content detail-card">
-        <div class="modal-title" style="text-align: center; color: var(--omega); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">TX ANALYSIS REPORT</div>
+        <div id="txModalTitle" class="modal-title" style="text-align: center; color: var(--omega); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">TX ANALYSIS REPORT</div>
         <div id="txDetailContent">
             <!-- Dynamically filled -->
         </div>
-        <button class="modal-btn m-close" style="width:100%; margin-top: 20px;" onclick="closeTxDetail()">CLOSE REPORT</button>
+        <button type="button" class="modal-btn m-close" style="width:100%; margin-top: 20px;" onclick="closeTxDetail()">CLOSE REPORT</button>
     </div>
 </div>
 
@@ -304,6 +250,20 @@ autoLoop = async function(){
                 </select>
             </div>
         </div>
+        <div class="control-group">
+            <label>AI WATCH</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <input type="checkbox" id="watchOnly" checked>
+                <label for="watchOnly" style="color:var(--text-dim); font-size:10px; margin:0;">Lock AI to barrier</label>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>MANUAL GUARD</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <input type="checkbox" id="manualGuardToggle">
+                <label for="manualGuardToggle" style="color:var(--text-dim); font-size:10px; margin:0;">Validate manual trades</label>
+            </div>
+        </div>
         <div class="control-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
             <div>
                 <label>STAKE ($)</label>
@@ -319,7 +279,17 @@ autoLoop = async function(){
             </div>
         </div>
 
-        <button id="connectBtn" class="btn btn-primary">CONNECT ACCOUNT</button>
+        <!-- MAX PROFIT / MAX LOST CONTROLS (placed below stake/dur/bulk) -->
+        <div class="control-group">
+            <label>MAX PROFIT / MAX LOSS</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="number" id="maxProfitLimit" placeholder="Max Profit ($)" style="flex:1;" value="0">
+                <input type="number" id="maxLostLimit" placeholder="Max Lost ($)" style="flex:1;" value="0">
+            </div>
+        </div>
+
+        <button type="button" id="connectBtn" class="btn btn-primary">CONNECT ACCOUNT</button>
+        <button type="button" id="selfTestBtn" class="btn" style="background:#64748b; margin-top:6px;">SELF-TEST UI</button>
         <hr style="border:0; border-top:1px solid var(--border); margin: 0.8rem 0;">
         <div class="control-group">
             <label>AI MODE</label>
@@ -329,9 +299,9 @@ autoLoop = async function(){
                 <option value="conservative">Safe Predictor (90%+)</option>
             </select>
         </div>
-        <button id="buyOver" class="btn btn-success" disabled>BUY OVER</button>
-        <button id="buyUnder" class="btn btn-error" disabled>BUY UNDER</button>
-        <button id="aiBtn" class="btn btn-omega" disabled>START AI ENGINE</button>
+        <button type="button" id="buyOver" class="btn btn-success" disabled>BUY OVER</button>
+        <button type="button" id="buyUnder" class="btn btn-error" disabled>BUY UNDER</button>
+        <button type="button" id="aiBtn" class="btn btn-omega" disabled>START AI ENGINE</button>
         
         <div class="poof-ui">
             <div class="poof-header">
@@ -344,8 +314,41 @@ autoLoop = async function(){
 
     <div class="main-view">
         <div class="card freq-card">
-            <div class="card-title">DIGIT FREQUENCY (100)</div>
+            <div class="card-title">DIGIT FREQUENCY (100) <button id="digitFreqHelpBtn" class="btn-clear" style="font-size:11px; padding:2px 6px; margin-left:8px;" onclick="openModal('digitFreqHelpModal')">?</button></div>
             <div class="digit-grid" id="digitFrequency"></div>
+        </div>
+
+        <!-- DIGIT FREQUENCY HELP MODAL -->
+        <div id="digitFreqHelpModal" class="modal-overlay" role="dialog" aria-modal="true" onclick="handleOverlayClick(event, 'digitFreqHelpModal')">
+            <div class="modal-content">
+                <div class="modal-title">Reading Digit Frequency (100)</div>
+                <div style="text-align:left; font-size:12px; color:var(--text-dim); margin-bottom:12px;">
+                    <p style="margin:6px 0;">- Each box shows the percent of that digit in the last 100 ticks.</p>
+                    <p style="margin:6px 0;">- Pink <strong>hot</strong> (X): digit is above the rolling mean by ≥3%.</p>
+                    <p style="margin:6px 0;">- Blue <strong>cold</strong> (X): digit is below the rolling mean by ≥3%.</p>
+                    <p style="margin:6px 0;">- ▲ (spike): detected a rapid spike (jump &gt;2% vs 3 ticks ago) — may trigger a safety-checked trade.</p>
+                    <p style="margin:6px 0;">Click outside this box or press OK to close.</p>
+                </div>
+                <div class="modal-actions"><button class="modal-btn m-close" onclick="closeModal('digitFreqHelpModal')">OK</button></div>
+            </div>
+        </div>
+
+        <div class="card freq-card" id="liveMicroCard">
+            <div class="card-title">MICRO FREQUENCY (25)</div>
+            <div id="live-micro-stats" class="micro-grid">
+                <!-- micro blocks 0-9 -->
+                
+                <div class="micro-block" id="micro-0"><div class="micro-digit">0</div><div class="micro-count" id="micro-count-0">0</div><div class="micro-pct" id="micro-pct-0">0%</div><div class="micro-bar"><div id="micro-bar-0" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-1"><div class="micro-digit">1</div><div class="micro-count" id="micro-count-1">0</div><div class="micro-pct" id="micro-pct-1">0%</div><div class="micro-bar"><div id="micro-bar-1" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-2"><div class="micro-digit">2</div><div class="micro-count" id="micro-count-2">0</div><div class="micro-pct" id="micro-pct-2">0%</div><div class="micro-bar"><div id="micro-bar-2" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-3"><div class="micro-digit">3</div><div class="micro-count" id="micro-count-3">0</div><div class="micro-pct" id="micro-pct-3">0%</div><div class="micro-bar"><div id="micro-bar-3" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-4"><div class="micro-digit">4</div><div class="micro-count" id="micro-count-4">0</div><div class="micro-pct" id="micro-pct-4">0%</div><div class="micro-bar"><div id="micro-bar-4" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-5"><div class="micro-digit">5</div><div class="micro-count" id="micro-count-5">0</div><div class="micro-pct" id="micro-pct-5">0%</div><div class="micro-bar"><div id="micro-bar-5" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-6"><div class="micro-digit">6</div><div class="micro-count" id="micro-count-6">0</div><div class="micro-pct" id="micro-pct-6">0%</div><div class="micro-bar"><div id="micro-bar-6" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-7"><div class="micro-digit">7</div><div class="micro-count" id="micro-count-7">0</div><div class="micro-pct" id="micro-pct-7">0%</div><div class="micro-bar"><div id="micro-bar-7" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-8"><div class="micro-digit">8</div><div class="micro-count" id="micro-count-8">0</div><div class="micro-pct" id="micro-pct-8">0%</div><div class="micro-bar"><div id="micro-bar-8" class="micro-bar-fill"></div></div></div>
+                <div class="micro-block" id="micro-9"><div class="micro-digit">9</div><div class="micro-count" id="micro-count-9">0</div><div class="micro-pct" id="micro-pct-9">0%</div><div class="micro-bar"><div id="micro-bar-9" class="micro-bar-fill"></div></div></div>
+            </div>
         </div>
 
         <div class="card feed-card">
@@ -407,6 +410,13 @@ autoLoop = async function(){
             <span class="stat-label">Session Profit</span>
             <span id="sessionProfit" class="stat-val">$0.00</span>
         </div>
+        <div class="ai-stat">
+            <span class="stat-label">AI Skepticism</span>
+            <span id="skepticMeter" class="stat-val" style="color:var(--omega); font-size:13px;">STABLE (0.15)</span>
+            <div style="background: var(--border); height: 4px; border-radius: 2px; margin-top: 5px;">
+                <div id="skepticBar" style="width: 50%; background: var(--omega); height: 100%; border-radius: 2px; transition: width 0.3s;"></div>
+            </div>
+        </div>
         
         <label>Live Transaction</label>
         <div class="tx-card" id="txDisplay">
@@ -420,6 +430,7 @@ autoLoop = async function(){
         <div class="card" style="margin-top: 1rem; padding: 0.5rem; background: #1e1b4b; border: 1px solid #312e81; height: 110px; flex-shrink: 0;">
             <div class="card-title" style="color: #c4b5fd; margin-bottom: 5px;">OMEGA INSIGHT</div>
             <p id="aiInsight" style="font-size: 10px; line-height: 1.4; color: #a5b4fc; margin: 0;">Waiting for connection...</p>
+            <p id="aiDebug" style="font-size:9px; color:#94a3b8; margin:6px 0 0 0; font-family: 'JetBrains Mono', monospace;"></p>
             <div class="indicator-grid">
                 <div class="ind-box"><span id="rsiVal" class="ind-val">--</span><span class="ind-lbl">RSI</span></div>
                 <div class="ind-box"><span id="volVal" class="ind-val">--</span><span class="ind-lbl">Volat</span></div>
@@ -428,7 +439,7 @@ autoLoop = async function(){
         </div>
 
         <div class="history-card">
-            <div class="card-title">TX HISTORY <button class="btn-clear" id="clearHistory">CLEAR</button></div>
+            <div class="card-title">TX HISTORY <button type="button" class="btn-clear" id="clearHistory">CLEAR</button></div>
             <div class="history-list" id="historyList"></div>
         </div>
     </div>
@@ -447,6 +458,40 @@ let lastTradeTick = -10;
 let lastTickTime = Date.now();
 let selectedDigit = 0;
 let historyRecords = {}; // Store detailed contract data by ID
+let watchedBarrier = null; // when set, AI will use this barrier regardless of UI
+let txResetTimer = null; // timer for auto-clearing live transaction UI
+let microHistory = []; // last 25 digits (fast window)
+// Candidate state for micro auto-trade (only consider digits 0,1,9)
+let microCandidateState = { digit: null, confirmations: 0, lastUpdateTick: 0 };
+const MICRO_ALLOWED = [0,1,9];
+const MICRO_CONFIRM_THRESHOLD = 2; // require this many consecutive confirmations before trading
+let manualGuard = false; // when true, manual trades go through placeTrade() safety checks
+// For rapid-spike detection: store recent percent snapshots and hold spikes for debounce
+let percentsHistory = []; // array of recent percent arrays (keep last 4 snapshots)
+let spikeHold = Array(10).fill(0); // hold counter to keep spike mark for N ticks
+const SPIKE_HOLD_TICKS = 5; // keep spike visible for at least 5 ticks
+
+// Decay/Confidence Floor logic
+let lastTopic = "";
+let lastSentiment = "neutral";
+let lastAmbiguous = false;
+let lastConfidence = 100;
+
+function updateConfidence(C0, t, lambda, topicChanged, ambiguous, sentimentShift) {
+    // If topic changes abruptly, reset to zero; otherwise apply soft penalties
+    if (topicChanged) return 0;
+    if (ambiguous) lambda = lambda * 1.5;
+    let conf = C0 * Math.exp(-lambda * t);
+    // Sentiment shifts now reduce confidence but do not zero it out
+    if (sentimentShift) conf = conf * 0.5;
+    return conf;
+}
+
+function respondByConfidence(C) {
+    if (C >= 80) return "Direct answer";
+    if (C >= 50) return "Hedge answer";
+    return "Clarification prompt";
+}
 
 // MODAL LOGIC
 function handleOverlayClick(e, id) {
@@ -459,15 +504,58 @@ function handleOverlayClick(e, id) {
 function openDigitModal(digit) {
     selectedDigit = digit;
     document.getElementById('modalTitle').innerText = `ACTION FOR DIGIT ${digit}`;
-    document.getElementById('digitModal').style.display = 'flex';
+    openModal('digitModal');
 }
 
 function closeDigitModal() {
-    document.getElementById('digitModal').style.display = 'none';
+    closeModal('digitModal');
 }
 
 function closeTxDetail() {
-    document.getElementById('txDetailModal').style.display = 'none';
+    closeModal('txDetailModal');
+}
+
+function escapeHtml(s){
+    return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+}
+
+function openModal(modalId){
+    const modal = document.getElementById(modalId);
+    if(!modal) return;
+    const main = document.querySelector('.container');
+    if(main) main.setAttribute('aria-hidden','true');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
+    modal._previousActive = document.activeElement;
+    const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const nodes = Array.from(focusables).filter(n => !n.disabled && n.offsetParent !== null);
+    if(nodes.length) nodes[0].focus();
+    modal._onkeydown = function(e){
+        if(e.key === 'Escape') { closeModal(modalId); }
+        if(e.key === 'Tab'){
+            if(nodes.length === 0) { e.preventDefault(); return; }
+            const idx = nodes.indexOf(document.activeElement);
+            if(e.shiftKey && idx === 0){ e.preventDefault(); nodes[nodes.length-1].focus(); }
+            else if(!e.shiftKey && idx === nodes.length-1){ e.preventDefault(); nodes[0].focus(); }
+        }
+    };
+    document.addEventListener('keydown', modal._onkeydown);
+}
+
+function closeModal(modalId){
+    const modal = document.getElementById(modalId);
+    if(!modal) return;
+    const main = document.querySelector('.container');
+    if(main) main.removeAttribute('aria-hidden');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+    if(modal._onkeydown) document.removeEventListener('keydown', modal._onkeydown);
+    try{ if(modal._previousActive) modal._previousActive.focus(); }catch(e){}
 }
 
 function showTxDetail(contractId) {
@@ -476,26 +564,26 @@ function showTxDetail(contractId) {
 
     const container = document.getElementById('txDetailContent');
     const isWin = parseFloat(data.profit) > 0;
-    const type = data.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
-    
+    const type = data.contract_type && data.contract_type.includes('OVER') ? 'OVER' : 'UNDER';
+
     container.innerHTML = `
-        <div class="detail-row"><span class="detail-label">Contract ID</span><span class="detail-val">${data.contract_id}</span></div>
-        <div class="detail-row"><span class="detail-label">Market</span><span class="detail-val">${data.display_name || 'Volatility Index'}</span></div>
-        <div class="detail-row"><span class="detail-label">Trade Type</span><span class="detail-val">${type} ${data.barrier}</span></div>
+        <div class="detail-row"><span class="detail-label">Contract ID</span><span class="detail-val">${escapeHtml(data.contract_id)}</span></div>
+        <div class="detail-row"><span class="detail-label">Market</span><span class="detail-val">${escapeHtml(data.display_name || 'Volatility Index')}</span></div>
+        <div class="detail-row"><span class="detail-label">Trade Type</span><span class="detail-val">${escapeHtml(type + ' ' + data.barrier)}</span></div>
         <div class="detail-row"><span class="detail-label">Status</span><span class="detail-val" style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'WIN':'LOSS'}</span></div>
         <div class="detail-row"><span class="detail-label">Buy Price</span><span class="detail-val">$${parseFloat(data.buy_price).toFixed(2)}</span></div>
         <div class="detail-row"><span class="detail-label">Profit/Loss</span><span class="detail-val" style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'+':''}${parseFloat(data.profit).toFixed(2)}</span></div>
-        <div class="detail-row"><span class="detail-label">Entry Spot</span><span class="detail-val">${data.entry_tick_display_value}</span></div>
-        <div class="detail-row"><span class="detail-label">Exit Spot</span><span class="detail-val">${data.exit_tick_display_value}</span></div>
-        <div class="detail-row"><span class="detail-label">Date/Time</span><span class="detail-val">${new Date(data.purchase_time * 1000).toLocaleString()}</span></div>
+        <div class="detail-row"><span class="detail-label">Entry Spot</span><span class="detail-val">${escapeHtml(data.entry_tick_display_value)}</span></div>
+        <div class="detail-row"><span class="detail-label">Exit Spot</span><span class="detail-val">${escapeHtml(data.exit_tick_display_value)}</span></div>
+        <div class="detail-row"><span class="detail-label">Date/Time</span><span class="detail-val">${escapeHtml(new Date(data.purchase_time * 1000).toLocaleString())}</span></div>
     `;
-    
-    document.getElementById('txDetailModal').style.display = 'flex';
+
+    openModal('txDetailModal');
 }
 
 document.getElementById('modalBuyOver').onclick = () => {
     if (!document.getElementById('buyOver').disabled) {
-        executeTradeSpecific('over', selectedDigit);
+        if (manualGuard) placeTrade('over', selectedDigit); else executeTradeSpecific('over', selectedDigit);
         closeDigitModal();
     } else {
         addLog("Please connect account first", "error");
@@ -504,7 +592,7 @@ document.getElementById('modalBuyOver').onclick = () => {
 
 document.getElementById('modalBuyUnder').onclick = () => {
     if (!document.getElementById('buyUnder').disabled) {
-        executeTradeSpecific('under', selectedDigit);
+        if (manualGuard) placeTrade('under', selectedDigit); else executeTradeSpecific('under', selectedDigit);
         closeDigitModal();
     } else {
         addLog("Please connect account first", "error");
@@ -523,8 +611,9 @@ document.getElementById('modalBulkX').onclick = async () => {
     if (b === 9) dir = "under";
     
     addLog(`Executing Bulk ${bulk}x on Digit ${selectedDigit}...`, "warning");
-    for(let i=0; i<bulk; i++) {
-        executeTradeSpecific(dir, selectedDigit);
+    for (let i = 0; i < bulk; i++) {
+        if (manualGuard) await placeTrade(dir, selectedDigit);
+        else { executeTradeSpecific(dir, selectedDigit); }
         await new Promise(r => setTimeout(r, 50)); // Changed from 200ms to 50ms as requested
     }
     closeDigitModal();
@@ -533,6 +622,8 @@ document.getElementById('modalBulkX').onclick = async () => {
 document.getElementById('modalSetBarrier').onclick = () => {
     document.getElementById('barrier').value = selectedDigit;
     addLog(`Barrier Switch: ${selectedDigit}`, "success");
+    // trigger change handler to recalibrate AI
+    document.getElementById('barrier').dispatchEvent(new Event('change'));
     closeDigitModal();
 };
 
@@ -541,9 +632,24 @@ for(let i=0; i<=9; i++) {
     const div = document.createElement('div');
     div.className = 'digit-box';
     div.id = `digit-${i}`;
-    div.innerHTML = `<span class="digit-val">${i}</span><span class="digit-pct" id="pct-${i}">0%</span><div class="digit-bar" id="bar-${i}"></div>`;
+    div.innerHTML = `<span class="digit-val">${i}</span><span class="digit-pct" id="pct-${i}">0%</span><div class="digit-bar" id="bar-${i}"></div><span class="digit-hotmark" id="hot-${i}"></span>`;
     div.onclick = () => openDigitModal(i);
+    div.tabIndex = 0;
+    div.onkeydown = (e) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDigitModal(i); } };
     digitFreqContainer.appendChild(div);
+}
+
+// ===== CONFIDENCE CALCULATION FUNCTIONS =====
+function updateConfidence(C0, t, lambda, topicChanged, ambiguous, sentimentShift) {
+    if (topicChanged || sentimentShift) return 0;
+    if (ambiguous) lambda = lambda * 1.5;
+    return C0 * Math.exp(-lambda * t);
+}
+
+function respondByConfidence(C) {
+    if (C >= 80) return "Direct answer";
+    if (C >= 50) return "Hedge answer";
+    return "Clarification prompt";
 }
 
 function safeSend(data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
@@ -569,7 +675,7 @@ function addLog(msg, type = 'info') {
     entry.className = `log-entry`;
     const color = type === 'success' ? '#10b981' : type === 'error' ? '#f43f5e' : type === 'warning' ? '#f59e0b' : '#3b82f6';
     entry.style.color = color;
-    entry.innerHTML = `<span>[${new Date().toLocaleTimeString([], {hour12:false})}]</span> <span>${msg}</span>`;
+    entry.innerHTML = `<span>[${new Date().toLocaleTimeString([], {hour12:false})}]</span> <span>${escapeHtml(msg)}</span>`;
     log.prepend(entry);
     if(log.childNodes.length > 50) log.lastChild.remove();
 }
@@ -581,6 +687,94 @@ function resetTxUI() {
     document.getElementById('txTime').innerText = "-";
     document.getElementById('txResult').innerText = "-";
     document.getElementById('txResult').style.color = 'var(--text-main)';
+}
+
+// ===== MICRO-FREQUENCY (FAST WINDOW) =====
+function updateMicroStats(newDigit) {
+    try {
+        microHistory.push(newDigit);
+        if (microHistory.length > 25) microHistory.shift();
+
+        const counts = {};
+        microHistory.forEach(d => counts[d] = (counts[d] || 0) + 1);
+
+        // find highest
+        let topDigit = null, topPct = -1;
+        for (let i = 0; i <= 9; i++) {
+            const count = counts[i] || 0;
+            const percent = microHistory.length ? (count / microHistory.length) * 100 : 0;
+            const pctEl = document.getElementById(`micro-pct-${i}`);
+            const countEl = document.getElementById(`micro-count-${i}`);
+            const barEl = document.getElementById(`micro-bar-${i}`);
+            const block = document.getElementById(`micro-${i}`);
+            if (countEl) countEl.innerText = count;
+            if (pctEl) pctEl.innerText = `${percent.toFixed(0)}%`;
+            if (barEl) barEl.style.width = `${percent}%`;
+            if (block) block.classList.remove('hot');
+            if (percent > topPct) { topPct = percent; topDigit = i; }
+        }
+
+        // highlight top digit
+        if (topDigit !== null) {
+            const topBlock = document.getElementById(`micro-${topDigit}`);
+            if (topBlock) topBlock.classList.add('hot');
+        }
+
+        // AUTO-TRADE BRIDGE (restricted to MICRO_ALLOWED): pick best among [0,1,9] and require confirmation
+        try {
+            // compute percents for allowed digits
+            let bestDigit = null, bestPct = -1;
+            for (const i of MICRO_ALLOWED) {
+                const percent = microHistory.length ? ((counts[i] || 0) / microHistory.length) * 100 : 0;
+                if (percent > bestPct) { bestPct = percent; bestDigit = i; }
+            }
+
+            if (bestDigit !== null) {
+                const percent = bestPct;
+                const globalCount = ticks.filter(d => d === bestDigit).length;
+                const globalPct = ticks.length ? (globalCount / ticks.length) * 100 : 0;
+                const mem = (typeof memoryBias === 'function') ? memoryBias(bestDigit) : 0;
+
+                // quick log for visibility
+                if (percent > 0) addLog(`Micro top ${bestDigit}: ${percent.toFixed(1)}% (global ${globalPct.toFixed(1)}%, mem ${mem.toFixed(2)})`, 'info');
+
+                // only proceed when AI is enabled, not already trading, and conditions meet
+                if (isAiRunning && !isTradeActive && percent > 20 && mem > 0.65) {
+                    // confirmation logic: same candidate seen consecutively
+                    if (microCandidateState.digit === bestDigit && (tickCounter - microCandidateState.lastUpdateTick) <= 6) {
+                        microCandidateState.confirmations++;
+                        microCandidateState.lastUpdateTick = tickCounter;
+                    } else {
+                        microCandidateState.digit = bestDigit;
+                        microCandidateState.confirmations = 1;
+                        microCandidateState.lastUpdateTick = tickCounter;
+                    }
+
+                    addLog(`Micro candidate ${bestDigit} confirmations ${microCandidateState.confirmations}/${MICRO_CONFIRM_THRESHOLD}`, 'warning');
+
+                    if (microCandidateState.confirmations >= MICRO_CONFIRM_THRESHOLD) {
+                        addLog(`Confirmed candidate ${bestDigit} — placing auto-trade 'over'`, 'success');
+                        try {
+                            placeTrade('over', bestDigit);
+                        } catch (e) { console.warn('Auto trade failed', e); addLog('Auto trade failed: '+e.message, 'error'); }
+                        microCandidateState = { digit: null, confirmations: 0, lastUpdateTick: tickCounter };
+                        lastTradeTick = tickCounter;
+                    }
+                } else {
+                    // reset confirmations if conditions not met
+                    if (microCandidateState.digit !== bestDigit) microCandidateState = { digit: null, confirmations: 0, lastUpdateTick: 0 };
+                }
+            }
+        } catch(e) { console.warn('auto-trade bridge error', e); }
+    } catch(e) { console.warn('updateMicroStats error', e); }
+}
+
+function highlightWinningDigit(digit, duration = 3000){
+    if(digit === null || digit === undefined) return;
+    const el = document.getElementById(`digit-${digit}`);
+    if(!el) return;
+    el.classList.add('won');
+    setTimeout(() => { el.classList.remove('won'); }, duration);
 }
 
 function resetSystemUI(fullReset = true) {
@@ -626,6 +820,34 @@ function resetSystemUI(fullReset = true) {
         document.getElementById(`digit-${i}`).classList.remove('active-tick');
     }
 
+    // Clear micro-frequency fast window and UI
+    try {
+        microHistory = [];
+        microCandidateState = { digit: null, confirmations: 0, lastUpdateTick: 0 };
+        for (let i = 0; i <= 9; i++) {
+            try { document.getElementById(`micro-count-${i}`).innerText = 0; } catch(e){}
+            try { document.getElementById(`micro-pct-${i}`).innerText = '0%'; } catch(e){}
+            try { document.getElementById(`micro-bar-${i}`).style.width = '0%'; } catch(e){}
+            try { document.getElementById(`micro-${i}`).classList.remove('hot'); } catch(e){}
+        }
+    } catch(e) { console.warn('micro reset failed', e); }
+
+    // Clear hot/cold digit markers
+    try {
+        for (let i = 0; i <= 9; i++) {
+            try { const box = document.getElementById(`digit-${i}`); if (box) { box.classList.remove('hot-digit'); box.classList.remove('cold-digit'); } } catch(e){}
+            try { const mark = document.getElementById(`hot-${i}`); if (mark) { mark.innerText = ''; mark.classList.remove('hot'); mark.classList.remove('cold'); } } catch(e){}
+        }
+    } catch(e) { console.warn('clear hot/cold failed', e); }
+
+    // Clear spike and percent history used by rapid-spike detector
+    try {
+        percentsHistory = [];
+        spikeHold = Array(10).fill(0);
+        // remove any visual spike-glow classes
+        document.querySelectorAll('.digit-box.spike-glow').forEach(b => b.classList.remove('spike-glow'));
+    } catch(e) { console.warn('clearing spike state failed', e); }
+
     resetTxUI();
 
     if (fullReset) {
@@ -634,6 +856,163 @@ function resetSystemUI(fullReset = true) {
         document.getElementById('aiBtn').classList.remove('btn-error');
     }
 }
+
+// ----------------- Self-test / Diagnostics -----------------
+// ===== MAX LIMITS HANDLING =====
+let maxProfitLimit = 0; // in dollars
+let maxLostLimit = 0; // in dollars
+let maxHitState = { hit: false, which: null };
+
+function updateMaxInputs() {
+    try {
+        const p = parseFloat(document.getElementById('maxProfitLimit').value) || 0;
+        const l = parseFloat(document.getElementById('maxLostLimit').value) || 0;
+        maxProfitLimit = p;
+        maxLostLimit = l;
+    } catch(e){}
+}
+
+function checkMaxLimits() {
+    try {
+        updateMaxInputs();
+        const disp = document.getElementById('sessionProfitDisplay');
+        if (disp) disp.innerText = `$${sessionProfit.toFixed(2)}`;
+        if (maxProfitLimit > 0 && sessionProfit >= maxProfitLimit) {
+            triggerMaxHit('profit');
+            return true;
+        }
+        if (maxLostLimit > 0 && sessionProfit <= -Math.abs(maxLostLimit)) {
+            triggerMaxHit('lost');
+            return true;
+        }
+        return false;
+    } catch(e){ console.warn('checkMaxLimits error', e); return false; }
+}
+
+function triggerMaxHit(which) {
+    if (maxHitState.hit) return;
+    maxHitState = { hit: true, which };
+    // block AI and manual trading
+    isAiRunning = false;
+    try { document.getElementById('buyOver').disabled = true; } catch(e){}
+    try { document.getElementById('buyUnder').disabled = true; } catch(e){}
+    addLog(`⚠️ MAX ${which === 'profit' ? 'PROFIT' : 'LOST'} reached: ${which === 'profit' ? '$'+maxProfitLimit : '$'+maxLostLimit}`, 'warning');
+    try {
+        const st = document.getElementById('maxLimitStatus');
+        if (st) { st.innerText = which === 'profit' ? 'MAX PROFIT HIT' : 'MAX LOST HIT'; st.style.color = which === 'profit' ? 'var(--success)' : 'var(--error)'; }
+    } catch(e){}
+    showMaxHitModal(which);
+}
+
+function resetMaxLimits(which) {
+    maxHitState = { hit: false, which: null };
+    if (which === 'profit') { maxProfitLimit = 0; try { document.getElementById('maxProfitLimit').value = 0; } catch(e){} }
+    if (which === 'lost') { maxLostLimit = 0; try { document.getElementById('maxLostLimit').value = 0; } catch(e){} }
+    // reset session profit to zero to allow fresh run
+    sessionProfit = 0;
+    updateAccountUI();
+    try { const st = document.getElementById('maxLimitStatus'); if (st) { st.innerText = 'OK'; st.style.color = 'var(--text-dim)'; } } catch(e){}
+    try { document.getElementById('buyOver').disabled = false; document.getElementById('buyUnder').disabled = false; } catch(e){}
+}
+
+function stepBackOnMax() {
+    // disconnect ws and keep bot blocked
+    try { if (ws && ws.readyState < 2) ws.close(); } catch(e){}
+    addLog('Step Back: Disconnected from market after max hit', 'warning');
+    try { const st = document.getElementById('maxLimitStatus'); if (st) { st.innerText = 'DISCONNECTED'; st.style.color = 'var(--text-dim)'; } } catch(e){}
+}
+
+function showMaxHitModal(which) {
+    // build modal html dynamically
+    const existing = document.getElementById('maxHitModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'maxHitModal';
+    modal.style.position = 'fixed';
+    modal.style.left = '0';
+    modal.style.top = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.background = 'rgba(0,0,0,0.6)';
+    modal.style.zIndex = 9999;
+    const box = document.createElement('div');
+    box.style.background = 'var(--card-bg)';
+    box.style.padding = '18px';
+    box.style.borderRadius = '10px';
+    box.style.width = '360px';
+    box.style.textAlign = 'center';
+    box.style.border = '1px solid var(--border)';
+    const emoji = which === 'profit' ? '🏆' : '🔻';
+    box.innerHTML = `<div style="font-size:28px;">${emoji}</div><h3 style="margin:6px 0;">Max ${which === 'profit' ? 'Profit' : 'Lost'} Reached</h3><p>You've hit the configured limit. Choose an action:</p>`;
+    const btnReset = document.createElement('button'); btnReset.className = 'btn btn-success'; btnReset.innerText = 'Reset'; btnReset.onclick = () => { resetMaxLimits(which); modal.remove(); };
+    const btnStep = document.createElement('button'); btnStep.className = 'btn btn-error'; btnStep.style.marginLeft='8px'; btnStep.innerText = 'Step Back'; btnStep.onclick = () => { stepBackOnMax(); modal.remove(); };
+    box.appendChild(btnReset); box.appendChild(btnStep);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+}
+
+function simulateTickQuote(value){
+    try{ processTick({ quote: value }); }catch(e){ console.error('simulateTickQuote error', e); }
+}
+
+function simulateSelfTest(){
+    addLog('Starting SELF-TEST (simulated ticks)...','warning');
+    document.getElementById('buyOver').disabled = false;
+    document.getElementById('buyUnder').disabled = false;
+    document.getElementById('aiBtn').disabled = false;
+    isAiRunning = true;
+    document.getElementById('aiBtn').innerText = 'STOP AI ENGINE';
+    document.getElementById('aiBtn').classList.remove('btn-omega');
+    document.getElementById('aiBtn').classList.add('btn-error');
+
+    for(let i=0;i<30;i++){
+        const digit = Math.floor(Math.random()*10);
+        const quote = 1000 + (i*0.1) + digit;
+        setTimeout(()=> simulateTickQuote(quote), i*150);
+    }
+
+    setTimeout(()=>{
+        const sampleProfit = (Math.random()*2 - 0.5).toFixed(2);
+        sessionProfit += parseFloat(sampleProfit);
+        totalTrades++;
+        if(parseFloat(sampleProfit) > 0) winCount++;
+        updateAccountUI();
+        updateSkepticismMeter();
+        addLog(`SELF-TEST finished. Session profit adjusted by $${sampleProfit}`,'success');
+
+        // Highlight the last tick's digit as the "winning" digit for the simulated run
+        try {
+            const lastDigit = ticks.length ? ticks[ticks.length-1] : null;
+            if (lastDigit !== null && lastDigit !== undefined) {
+                highlightWinningDigit(lastDigit, 3500);
+            }
+        } catch(e) { console.warn('simulateSelfTest highlight failed', e); }
+    }, 30*150 + 300);
+
+    // CLEANUP: clear simulated data and restore UI 4s after SELF-TEST finishes
+    setTimeout(() => {
+        try {
+            // perform a full reset so all UI, markers and detector state are cleared
+            resetSystemUI(true);
+            // ensure buy buttons are disabled after test
+            try { document.getElementById('buyOver').disabled = true; } catch(e){}
+            try { document.getElementById('buyUnder').disabled = true; } catch(e){}
+            addLog('SELF-TEST cleanup completed, full UI reset applied.', 'info');
+        } catch(e) {
+            console.warn('SELF-TEST cleanup failed', e);
+        }
+    }, 30*150 + 300 + 4000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('selfTestBtn');
+    if(btn) btn.onclick = simulateSelfTest;
+    const mg = document.getElementById('manualGuardToggle');
+    if (mg) mg.onchange = (e) => { manualGuard = e.target.checked; addLog(`Manual Guard ${manualGuard ? 'ENABLED' : 'DISABLED'}`, 'info'); };
+});
 
 function updateTxUI(data) {
     if (data.status) document.getElementById('txStatus').innerText = data.status;
@@ -644,6 +1023,15 @@ function updateTxUI(data) {
         const el = document.getElementById('txResult');
         el.innerText = data.result;
         el.style.color = data.result.includes('WIN') ? 'var(--success)' : 'var(--error)';
+        // mark as settled
+        try { document.getElementById('txStatus').innerText = 'SETTLED'; } catch(e){}
+        
+        // AUTO-CLEAR RESULT AFTER 4 SECONDS (use resetTxUI)
+        try { if (txResetTimer) clearTimeout(txResetTimer); } catch(e){}
+        txResetTimer = setTimeout(() => {
+            try { resetTxUI(); } catch(e) { console.warn('resetTxUI failed', e); }
+            txResetTimer = null;
+        }, 4000);
     }
 }
 
@@ -662,13 +1050,13 @@ function addToHistory(contract) {
     item.onclick = () => showTxDetail(contract.contract_id);
     item.innerHTML = `
         <div class="hist-header">
-            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${type} ${contract.barrier}</span>
+            <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${escapeHtml(type + ' ' + contract.barrier)}</span>
             <span style="color: ${isWin ? 'var(--success)' : 'var(--error)'}">${isWin ? 'WIN' : 'LOSS'}</span>
         </div>
         <div class="hist-grid">
-            <div class="hist-row"><span>Stake:</span><span>$${stake.toFixed(2)}</span></div>
-            <div class="hist-row"><span>Profit:</span><span style="color:${isWin?'var(--success)':'var(--error)'}">${isWin?'+':''}${profit.toFixed(2)}</span></div>
-            <div class="hist-row"><span>Time:</span><span>${time}</span></div>
+            <div class="hist-row"><span>Stake:</span><span>$${escapeHtml(stake.toFixed(2))}</span></div>
+            <div class="hist-row"><span>Profit:</span><span style="color:${isWin?'var(--success)':'var(--error)'}">${escapeHtml((isWin?'+':'') + profit.toFixed(2))}</span></div>
+            <div class="hist-row"><span>Time:</span><span>${escapeHtml(time)}</span></div>
             <div class="hist-row"><span>Click:</span><span>Details</span></div>
         </div>
     `;
@@ -677,13 +1065,55 @@ function addToHistory(contract) {
 }
 
 document.getElementById('market').onchange = (e) => {
+    addLog(`Switching Market: ${e.target.value}`, "warning");
+    // perform a full reset so UI and markers align immediately with the new market
+    try { resetSystemUI(true); } catch(e) { console.warn('market switch reset failed', e); }
     if (ws && ws.readyState === WebSocket.OPEN) {
-        addLog(`Switching Market: ${e.target.value}`, "warning");
-        safeSend({ forget_all: "ticks" }); 
-        resetSystemUI(false); 
-        safeSend({ ticks: e.target.value, subscribe: 1 }); 
+        try { safeSend({ forget_all: "ticks" }); } catch(e) {}
+        try { safeSend({ ticks: e.target.value, subscribe: 1 }); } catch(e) {}
     }
 };
+
+// When barrier changes, reset confidence and recalc immediately
+document.getElementById('barrier').onchange = (e) => {
+    const v = parseInt(e.target.value);
+    smoothedConf = 0;
+    poofConf = 0;
+    lastTickTime = Date.now();
+    document.getElementById('aiConfidence').innerText = `0.0%`;
+    document.getElementById('boostFill').style.width = `0%`;
+    addLog(`Barrier changed to ${v} — recalibrating`, 'warning');
+    // recalc immediately with existing ticks
+    try{ runAIAnalysis(); runCoreEngines(); }catch(err){ console.warn('Recalc on barrier change failed', err); }
+};
+
+// Helper: when `watchedBarrier` is set, AI uses that instead of UI barrier
+function getEffectiveBarrier(){
+    try{
+        const uiB = parseInt(document.getElementById('barrier').value);
+        return (watchedBarrier !== null && watchedBarrier !== undefined) ? watchedBarrier : uiB;
+    }catch(e){ return parseInt(document.getElementById('barrier').value); }
+}
+
+// Watch-only toggle: lock AI to current barrier when checked
+const watchEl = document.getElementById('watchOnly');
+if(watchEl){
+    // initialize based on checked state
+    if(watchEl.checked){ watchedBarrier = parseInt(document.getElementById('barrier').value); document.getElementById('barrier').disabled = true; }
+    watchEl.onchange = (ev) => {
+        if(ev.target.checked){
+            watchedBarrier = parseInt(document.getElementById('barrier').value);
+            document.getElementById('barrier').disabled = true;
+            addLog(`AI locked to barrier ${watchedBarrier}`, 'success');
+            try{ runAIAnalysis(); runCoreEngines(); }catch(e){}
+        } else {
+            watchedBarrier = null;
+            document.getElementById('barrier').disabled = false;
+            addLog('AI unlocked from barrier watching', 'warning');
+            try{ runAIAnalysis(); runCoreEngines(); }catch(e){}
+        }
+    };
+}
 
 document.getElementById('connectBtn').onclick = () => {
     if (ws && ws.readyState < 2) { ws.close(); return; }
@@ -696,6 +1126,7 @@ document.getElementById('connectBtn').onclick = () => {
     ws.onopen = () => safeSend({ authorize: token });
     ws.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
+        console.debug('WS message', data);
         if(data.error) return addLog(data.error.message, "error");
         if(data.msg_type === 'authorize') {
             document.getElementById('connectionStatus').classList.add('online');
@@ -716,8 +1147,8 @@ document.getElementById('connectBtn').onclick = () => {
             if (c.entry_tick_display_value) document.getElementById('txEntry').innerText = c.entry_tick_display_value;
             if (c.exit_tick_display_value) document.getElementById('txTick').innerText = c.exit_tick_display_value;
             if(c?.is_sold) {
-        const b = parseInt(c.barrier);
-    
+                const b = parseInt(c.barrier);
+
                 isTradeActive = false;
                 const p = parseFloat(c.profit);
                 sessionProfit += p; totalTrades++;
@@ -725,11 +1156,26 @@ document.getElementById('connectBtn').onclick = () => {
                 updateTxUI({ result: p > 0 ? `WIN +$${p.toFixed(2)}` : `LOSS $${p.toFixed(2)}` });
                 addToHistory(c);
                 updateAccountUI();
-                setTimeout(() => { if(!isTradeActive) resetTxUI(); }, 5000);
+                // highlight winning digit (from exit tick)
+                try{
+                    const exitVal = c.exit_tick_display_value;
+                    let exitDigit = exitVal !== undefined && exitVal !== null ? parseInt(String(exitVal).slice(-1)) : NaN;
+                    // fallback to last tick if exit digit not provided
+                    if (isNaN(exitDigit) && ticks && ticks.length) {
+                        exitDigit = ticks[ticks.length - 1];
+                    }
+                    if(!isNaN(exitDigit)) highlightWinningDigit(exitDigit, 2600);
+                }catch(e){console.warn('Highlight digit failed', e);}
+                // schedule UI reset using centralized timer so highlight remains visible
+                try { if (txResetTimer) clearTimeout(txResetTimer); } catch(e){}
+                txResetTimer = setTimeout(() => { try { resetTxUI(); } catch(e){}; txResetTimer = null; }, 3000);
             }
         }
     };
-    ws.onclose = () => {
+    ws.onerror = (err) => { console.error('WebSocket error', err); addLog('WebSocket error', 'error'); };
+    ws.onclose = (ev) => {
+        console.warn('WebSocket closed', ev);
+        addLog(`Disconnected (code ${ev?.code || 'unknown'})`, 'warning');
         document.getElementById('connectionStatus').classList.remove('online');
         document.getElementById('connectBtn').innerText = "CONNECT ACCOUNT";
         document.getElementById('connectBtn').classList.replace('btn-error', 'btn-primary');
@@ -741,73 +1187,234 @@ document.getElementById('connectBtn').onclick = () => {
 function processTick(tick) {
     if (!tick || !tick.quote) return;
     const digit = parseInt(tick.quote.toString().slice(-1));
+    // previous tick's digit (the winner of the last round) — highlight it now
+    const prevDigit = ticks.length ? ticks[ticks.length - 1] : null;
     ticks.push(digit);
     if(ticks.length > 100) ticks.shift();
-    tickCounter++; lastTickTime = Date.now();
+    tickCounter++; 
+    lastTickTime = Date.now();
     
-    document.querySelectorAll('.digit-box').forEach(b => b.classList.remove('active-tick'));
-    document.getElementById(`digit-${digit}`)?.classList.add('active-tick');
+    // 🔥 AGGRESSIVE LOGGING
+    console.warn(`🔥 TICK #${tickCounter} | Digit: ${digit} | Ticks array: ${ticks.length} | Conf: ${smoothedConf.toFixed(1)}%`);
 
+    // clear previous active and any round-result highlights so previous round's 'won' doesn't persist
+    document.querySelectorAll('.digit-box').forEach(b => { b.classList.remove('active-tick'); b.classList.remove('won'); });
+    // mark current tick only
+    const curEl = document.getElementById(`digit-${digit}`);
+    if (curEl) {
+        curEl.classList.add('active-tick');
+    }
+
+    // Highlight the previous tick's digit as the "winner" of the previous round (briefly)
+    try {
+        if (prevDigit !== null && prevDigit !== undefined) {
+            const prevEl = document.getElementById(`digit-${prevDigit}`);
+            if (prevEl) {
+                prevEl.classList.add('won');
+                // remove won class shortly before next tick arrives (safe guard)
+                setTimeout(() => { try { prevEl.classList.remove('won'); } catch(e){} }, 1200);
+            }
+        }
+    } catch(e) { console.warn('prevDigit highlight failed', e); }
+
+    // update fast-window micro stats
+    try { updateMicroStats(digit); } catch(e) { console.warn('updateMicroStats failed', e); }
+
+    // compute current percent distribution across the 100-window
     const currentStats = Array(10).fill(0);
     ticks.forEach(d => currentStats[d]++);
+    const percents = [];
     for(let i=0; i<=9; i++) {
         const pct = (currentStats[i] / ticks.length) * 100;
-        document.getElementById(`bar-${i}`).style.height = `${pct}%`;
-        document.getElementById(`pct-${i}`).innerText = `${pct.toFixed(0)}%`;
+        percents.push(pct);
+        const barEl = document.getElementById(`bar-${i}`);
+        const pctEl = document.getElementById(`pct-${i}`);
+        if (barEl) barEl.style.height = `${pct}%`;
+        if (pctEl) pctEl.innerText = `${pct.toFixed(0)}%`;
     }
+
+    // push snapshot into history (we keep last 4 snapshots; index 0 = 3 ticks ago)
+    try {
+        percentsHistory.push(percents.slice());
+        if (percentsHistory.length > 4) percentsHistory.shift();
+    } catch(e) { console.warn('percentsHistory push failed', e); }
+
+    // determine hot/cold thresholds dynamically (mean +/- 3%) — sharpened
+    const meanPct = percents.reduce((a,b)=>a+b,0)/percents.length;
+    const hotThreshold = meanPct + 3;
+    const coldThreshold = meanPct - 3;
+
+    for (let i = 0; i <= 9; i++) {
+        try {
+            const box = document.getElementById(`digit-${i}`);
+            const mark = document.getElementById(`hot-${i}`);
+            if (!box) continue;
+
+            // preserve spike glow / hold if active
+            if (spikeHold[i] > 0) {
+                box.classList.add('spike-glow');
+            } else {
+                box.classList.remove('spike-glow');
+            }
+
+            // NOTE: Do NOT remove existing hot/cold marks here. Once a digit is marked
+            // hot or cold it remains until an explicit reset (disconnect, market switch, or SELF-TEST finish).
+            // We only add marks when a new condition is met to avoid flicker and preserve history.
+
+            const pct = percents[i];
+
+            // Rapid-spike detection: compare to 3 ticks ago
+            let rapidSpike = false;
+            if (percentsHistory.length >= 4) {
+                const threeAgo = percentsHistory[0][i] || 0;
+                const delta = pct - threeAgo;
+                if (delta > 2) rapidSpike = true; // >2% jump in 3 ticks
+            }
+
+            // If rapid spike detected and not currently held, mark immediately and trigger trade
+            if (rapidSpike && spikeHold[i] === 0) {
+                // visual: immediate spike glow + hot-digit
+                box.classList.add('hot-digit');
+                box.classList.add('spike-glow');
+                if (mark) { mark.innerText = '▲'; mark.classList.add('hot'); }
+                spikeHold[i] = SPIKE_HOLD_TICKS; // hold for debounce
+
+                // decide direction relative to effective barrier
+                try {
+                    const effB = getEffectiveBarrier();
+                    let dir = (i > effB) ? 'over' : 'under';
+                    if (i === 0) dir = 'over';
+                    if (i === 9) dir = 'under';
+                    addLog(`Rapid Spike detected on ${i}: ${pct.toFixed(1)}% (+${(pct - (percentsHistory[0][i]||0)).toFixed(2)}%). Triggering safety-checked trade ${dir}.`, 'warning');
+                    // fire-and-forget safety-checked placeTrade
+                    try { placeTrade(dir, i); } catch(e) { console.warn('Rapid spike placeTrade failed', e); }
+                } catch(e) { console.warn('Rapid-spike trade trigger failed', e); }
+            }
+
+            // Standard hot/cold marking using sharpened threshold only when not held by spike
+            if (spikeHold[i] === 0) {
+                if (pct >= hotThreshold) {
+                    box.classList.add('hot-digit');
+                    if (mark) { mark.innerText = 'X'; mark.classList.add('hot'); }
+                } else if (pct <= coldThreshold) {
+                    box.classList.add('cold-digit');
+                    if (mark) { mark.innerText = 'X'; mark.classList.add('cold'); }
+                }
+            }
+
+        } catch(e) { console.warn('hot/cold mark failed', e); }
+    }
+
+    // decrement spike hold counters so marks remain for a minimum number of ticks
+    for (let i = 0; i <= 9; i++) { if (spikeHold[i] > 0) spikeHold[i]--; }
     
-    runAIAnalysis();
-    runCoreEngines();
+    try { runAIAnalysis(); } catch(e) { console.error('❌ AI Analysis error:', e); }
+    try { runCoreEngines(); } catch(e) { console.error('❌ Core Engines error:', e); }
     
     const statusEl = document.getElementById('aiStatusDisplay');
     const ticksLeft = 10 - (tickCounter - lastTradeTick);
     if (isAiRunning) {
         if (ticksLeft > 0) { statusEl.innerText = `COOLING DOWN (${ticksLeft}t)`; statusEl.style.color = "var(--warning)"; }
         else { statusEl.innerText = "SCANNING OPPORTUNITY"; statusEl.style.color = "var(--success)"; }
+    } else {
+        statusEl.innerText = "AWAITING START";
+        statusEl.style.color = "var(--text-dim)";
     }
 }
 
 function runAIAnalysis() {
-    if(ticks.length < 10) return; 
-    const barrier = parseInt(document.getElementById('barrier').value);
+    const barrier = getEffectiveBarrier();
     
-    let gains = 0, losses = 0;
-    for(let i = 1; i <= 14 && i < ticks.length; i++) {
-        let diff = ticks[ticks.length - i] - (ticks[ticks.length - i - 1] || 0);
-        if(diff >= 0) gains += diff; else losses -= diff;
+    // If not enough ticks yet, still show initial confidence
+    if(ticks.length < 2) {
+        document.getElementById('aiConfidence').innerText = `0.0%`;
+        document.getElementById('boostFill').style.width = `0%`;
+        return;
     }
+
+    const recent20 = ticks.slice(-20);
+    const mean = recent20.reduce((a, b) => a + b, 0) / recent20.length;
+    const volatility = Math.sqrt(recent20.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / recent20.length);
+    let gains = 0, losses = 0;
+    for (let i = 1; i < recent20.length; i++) { const d = recent20[i] - recent20[i-1]; if (d>0) gains+=d; else losses-=d; }
     const rsi = losses === 0 ? 100 : 100 - (100 / (1 + (gains / (losses || 1))));
-    const recent = ticks.slice(-20);
-    const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
-    const volatility = Math.sqrt(recent.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / recent.length);
     document.getElementById('rsiVal').innerText = rsi.toFixed(1);
     document.getElementById('volVal').innerText = volatility.toFixed(2);
-    document.getElementById('trendVal').innerText = ticks.slice(-5).reduce((a,b)=>a+b)/5 > mean ? "BULL" : "BEAR";
+    document.getElementById('trendVal').innerText = (ticks.slice(-5).reduce((a,b)=>a+b,0)/5 > mean) ? "BULL" : "BEAR";
 
-    const poofWindow = ticks.slice(-25);
+    const N = Math.min(25, ticks.length);
+    const win = ticks.slice(-N);
     let pOver = 0, pUnder = 0;
-    poofWindow.forEach((d, idx) => { const weight = (idx + 1) / 25; if (d > barrier) pOver += weight; else if (d < barrier) pUnder += weight; });
-    let decay = ((Date.now() - lastTickTime) / 1000) * 2.5;
-    if ([0,1,9].includes(barrier)) decay -= 3.5; 
-    poofConf = Math.max(Math.min((Math.max(pOver, pUnder) / (pOver + pUnder || 1)) * 100, 80) - decay, 0); 
+    const base = 1.06;
+    for(let i=0;i<win.length;i++){
+        const w = Math.pow(base, i);
+        const d = win[i];
+        if(d > barrier) pOver += w;
+        else if(d < barrier) pUnder += w;
+    }
+    const sum = (pOver + pUnder) || 1;
+    const norm = Math.abs(pOver - pUnder) / sum;
+    poofConf = Math.max(0, Math.min(norm * 100, 95));
     document.getElementById('poofValue').innerText = `${poofConf.toFixed(1)}%`;
-    document.getElementById('poofPrediction').innerText = `Poof: ${pOver > pUnder ? "OVER" : "UNDER"} ${barrier}`;
+    document.getElementById('poofPrediction').innerText = `Poof: ${pOver > pUnder ? "OVER" : "UNDER"} ${barrier}${watchedBarrier!==null? ' (watched)':''}`;
 
-    let rawConf = poofConf + (ticks.slice(-3).filter(d => (pOver > pUnder ? d > barrier : d < barrier)).length / 3 * 15);
-    rawConf = Math.min(Math.max(rawConf - (volatility * 2), 0), 98.5);
-    smoothedConf = (smoothedConf * 0.7) + (rawConf * 0.3);
-    
-    
+    let topicChanged = false;
+    let ambiguous = false;
+    let sentimentShift = false;
+    // Topic detection disabled - too aggressive on random data
+    // if (ticks.length >= 3 && (ticks[ticks.length-1] !== ticks[ticks.length-2] && ticks[ticks.length-2] !== ticks[ticks.length-3])) topicChanged = true;
+    if (volatility > 3.5) ambiguous = true;
+    if (poofConf < 20) sentimentShift = true;
+
+    const lambda = 0.08;
+    const t = 1;
+    let C0 = poofConf + 10;
+    let decayedConf = updateConfidence(C0, t, lambda, topicChanged, ambiguous, sentimentShift);
+
+    console.log(`📊 CALC: poofConf=${poofConf.toFixed(1)} C0=${C0.toFixed(1)} topicChg=${topicChanged} ambig=${ambiguous} sent=${sentimentShift} → decayedConf=${decayedConf.toFixed(1)}`);
+
     const memAdj = memoryBias(barrier);
-    smoothedConf = Math.max(Math.min(smoothedConf + memAdj, 99), 0);
-    document.getElementById('aiConfidence').innerText = `${smoothedConf.toFixed(1)}%`;
+    console.log(`🧠 MEMORY BIAS: memAdj=${memAdj.toFixed(1)}`);
+    // DISABLED: Memory bias was too aggressive, killing confidence
+    // if(memAdj <= -50) decayedConf = Math.max(0, Math.min(decayedConf + memAdj, 5));
+    // else decayedConf = Math.max(0, Math.min(decayedConf + memAdj, 99));
+    // Use gentler adjustment: cap at -10% penalty
+    const gentleAdj = Math.max(-10, memAdj); 
+    decayedConf = Math.max(0, Math.min(decayedConf + gentleAdj, 99));
+    console.log(`🔧 AFTER MEMORY: decayedConf=${decayedConf.toFixed(1)}`);
+
+    const oldConf = smoothedConf;
+    smoothedConf = smoothedConf * 0.55 + decayedConf * 0.45;
+    smoothedConf = Math.max(0, Math.min(smoothedConf, 99));
+
+    console.log(`📈 EMA: ${oldConf.toFixed(1)}*0.55 + ${decayedConf.toFixed(1)}*0.45 = ${smoothedConf.toFixed(1)}%`);
+
+    // FORCE DOM UPDATE
+    const confEl = document.getElementById('aiConfidence');
+    const fillEl = document.getElementById('boostFill');
+    if(confEl) {
+        const oldText = confEl.innerText;
+        confEl.innerText = `${smoothedConf.toFixed(1)}%`;
+        confEl.style.color = smoothedConf > 70 ? '#10b981' : smoothedConf > 40 ? '#f59e0b' : '#f43f5e';
+        console.log(`✅ DOM UPDATE: #aiConfidence changed from "${oldText}" to "${confEl.innerText}"`);
+    } else {
+        console.error(`❌ Element #aiConfidence NOT FOUND!`);
+    }
+    if(fillEl) fillEl.style.width = `${smoothedConf}%`;
+
+    let responseType = respondByConfidence(smoothedConf);
+    document.getElementById('aiInsight').innerText = responseType === "Direct answer" ? "Cluster detected. High signal quality." : responseType === "Hedge answer" ? "Hedging: Based on earlier..." : "Clarification: Losing thread, please confirm topic.";
+
+    try { updateSkepticismMeter(); } catch(e) { console.warn('Skepticism meter update failed', e); }
+
+    document.getElementById('aiDebug').innerText = `effB:${barrier} decay:${decayedConf.toFixed(1)} poof:${poofConf.toFixed(1)} memAdj:${memAdj}`;
     
-    document.getElementById('boostFill').style.width = `${smoothedConf}%`;
-    document.getElementById('aiInsight').innerText = smoothedConf > 80 ? "Cluster detected. High signal quality." : "Scanning patterns...";
+    // DETAILED LOGGING
+    console.log(`[🔥 TICK ${tickCounter}] CONF: ${oldConf.toFixed(1)}% → ${smoothedConf.toFixed(1)}% | Poof: ${poofConf.toFixed(1)}% | Ticks: ${ticks.length} | Barrier: ${barrier}`);
 }
 
 function runCoreEngines() {
-    const barrier = parseInt(document.getElementById('barrier').value);
+    const barrier = getEffectiveBarrier();
     const dist = ticks.slice(-10).reduce((acc, d) => acc + Math.abs(d - barrier), 0) / 10;
     document.getElementById('core1Val').innerText = dist < 2 ? "HIGH" : "LOW";
     document.getElementById('core2Val').innerText = Math.abs(ticks[ticks.length-1] - (ticks[ticks.length-2]||0)).toFixed(1);
@@ -819,15 +1426,25 @@ function updateAccountUI() {
     document.getElementById('sessionProfit').innerText = `$${sessionProfit.toFixed(2)}`;
     document.getElementById('sessionProfit').style.color = sessionProfit >= 0 ? 'var(--success)' : 'var(--error)';
     if(accuracyChart) {
-        accuracyChart.data.labels.push(""); accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
+        accuracyChart.data.labels.push(""); 
+        accuracyChart.data.datasets[0].data.push(totalTrades > 0 ? (winCount/totalTrades)*100 : 0);
         if(accuracyChart.data.labels.length > 20) { accuracyChart.data.labels.shift(); accuracyChart.data.datasets[0].data.shift(); }
         accuracyChart.update('none');
     }
+    console.log(`Session Profit updated: $${sessionProfit.toFixed(2)}, Total Trades: ${totalTrades}, Win Rate: ${totalTrades > 0 ? (winCount/totalTrades*100).toFixed(1) : 0}%`);
+
+    try { const s = document.getElementById('sessionProfitDisplay'); if (s) s.innerText = `$${sessionProfit.toFixed(2)}`; } catch(e){}
+    // check max limits after account update
+    try { checkMaxLimits(); } catch(e){}
 }
 
 async function executeTrade(dir) {
     const barrier = document.getElementById('barrier').value;
-    executeTradeSpecific(dir, barrier);
+    if (manualGuard) {
+        await placeTrade(dir, barrier);
+    } else {
+        executeTradeSpecific(dir, barrier);
+    }
 }
 
 async function executeTradeSpecific(dir, barrierValue) {
@@ -855,34 +1472,6 @@ document.getElementById('aiBtn').onclick = () => {
 
 
 
-
-// ===== AI MEMORY PER MARKET & BARRIER =====
-let marketMemory = {}; // { MARKET: { barrier: {wins, losses} } }
-
-function getMarket() {
-    return document.getElementById('market').value;
-}
-
-function initMarketMemory(market) {
-    if (!marketMemory[market]) {
-        marketMemory[market] = {};
-        for (let i = 0; i <= 9; i++) {
-            marketMemory[market][i] = { wins: 0, losses: 0 };
-        }
-    }
-}
-
-function memoryBias(barrier) {
-    const market = getMarket();
-    initMarketMemory(market);
-    const m = marketMemory[market][barrier];
-    const total = m.wins + m.losses;
-    if (total < 3) return 0;
-    const winRate = m.wins / total;
-    if (winRate < 0.4) return -8;
-    if (winRate > 0.65) return +6;
-    return 0;
-}
 
 // ===== OMEGA CORE CONFIRMATION LOGIC =====
 function coreConfirmations(mode) {
@@ -914,7 +1503,7 @@ function showCoreDetail(core) {
     };
     document.getElementById('txDetailContent').innerHTML =
         `<div class="detail-row"><span class="detail-val">${map[core]}</span></div>`;
-    document.getElementById('txDetailModal').style.display = 'flex';
+    openModal('txDetailModal');
 }
 
 document.getElementById('core1Box').onclick = () => showCoreDetail(1);
@@ -933,15 +1522,33 @@ async function autoLoop() {
     if (mode === 'conservative') threshold = 91;
 
     if(smoothedConf >= threshold && !isTradeActive && (tickCounter - lastTradeTick) >= cdLimit && coreConfirmations(mode)) {
-        let dir = document.getElementById('poofPrediction').innerText.includes("OVER") ? "over" : "under";
-    const b = parseInt(document.getElementById('barrier').value);
-    if (b === 0) dir = "over";
-    if (b === 9) dir = "under";
-        lastTradeTick = tickCounter; 
-        const bulk = parseInt(document.getElementById('bulk').value) || 1;
-        for(let i=0; i<bulk; i++) { 
-            executeTrade(dir); 
-            await new Promise(r => setTimeout(r, 50)); // Fast bulk execution
+        const effectiveBarrier = getEffectiveBarrier();
+        
+        // TRADE LOGIC: Only trade OVER 0, OVER 1, or UNDER 9
+        let shouldTrade = false;
+        let tradeDir = null;
+        
+        if (effectiveBarrier === 0) {
+            tradeDir = "over";
+            shouldTrade = true;
+        } else if (effectiveBarrier === 1) {
+            tradeDir = "over";
+            shouldTrade = true;
+        } else if (effectiveBarrier === 9) {
+            tradeDir = "under";
+            shouldTrade = true;
+        }
+        
+        if (shouldTrade) {
+            lastTradeTick = tickCounter; 
+            const bulk = parseInt(document.getElementById('bulk').value) || 1;
+            addLog(`🤖 AI AUTO: Trading ${tradeDir.toUpperCase()} barrier ${effectiveBarrier}`, 'warning');
+            for(let i=0; i<bulk; i++) { 
+                await placeTrade(tradeDir, effectiveBarrier);
+                await new Promise(r => setTimeout(r, 50));
+            }
+        } else {
+            addLog(`⏸️ AI SKIP: Barrier ${effectiveBarrier} not in trade list (0, 1, 9)`, 'info');
         }
     }
     setTimeout(() => { if(isAiRunning) autoLoop(); }, 200);
@@ -950,6 +1557,92 @@ document.getElementById('clearHistory').onclick = () => {
     document.getElementById('historyList').innerHTML = ''; 
     historyRecords = {};
 };
+
+// ===== EMBEDDED DIGIT SYSTEM ENGINE =====
+let systemSettings = {
+    config: {
+        decay_constant: 0.15,
+        market_shift_multiplier: 3.0,
+        current_mode: 'stable',
+        floors: {
+            block: 0.40,
+            hedge: 0.60,
+            strong: 0.65
+        }
+    }
+};
+
+// Core confidence calculator - Exponential Decay
+function getDecayedConfidence(entry, isNewMarket) {
+    if (!systemSettings.config) return 1;
+    const { decay_constant, market_shift_multiplier } = systemSettings.config;
+    const now = Date.now();
+    const elapsedMinutes = (now - (entry?.lastUpdated || now)) / 60000;
+
+    let lambda = decay_constant;
+    if (isNewMarket) lambda *= market_shift_multiplier;
+
+    return Math.exp(-lambda * elapsedMinutes);
+}
+
+// Get thresholds from config
+function getFloors() {
+    return systemSettings.config?.floors || { block: 0.4, hedge: 0.6, strong: 0.65 };
+}
+
+// ===== AUTO-PILOT TUNING SYSTEM =====
+let recentResults = [];
+const RECENT_WINDOW = 10;
+
+function getRecentStats(window_size) {
+    return recentResults.slice(-window_size);
+}
+
+function updateSkepticismMeter() {
+    if (!systemSettings.config) return;
+    const mode = systemSettings.config.current_mode || 'stable';
+    const decayVal = systemSettings.config.decay_constant.toFixed(2);
+    const meterEl = document.getElementById('skepticMeter');
+    const barEl = document.getElementById('skepticBar');
+    
+    if (meterEl) meterEl.innerText = `${mode.toUpperCase()} (${decayVal})`;
+    if (barEl) {
+        const width = mode === 'volatile' ? 85 : 50;
+        barEl.style.width = `${width}%`;
+    }
+}
+
+function autoTuneSystem(recentResultsList) {
+    if (!systemSettings.config) return;
+    
+    const lossCount = recentResultsList.filter(r => r === 'loss').length;
+    const lossRate = recentResultsList.length > 0 ? (lossCount / recentResultsList.length) : 0;
+    
+    const prevMode = systemSettings.config.current_mode || 'stable';
+    
+    // Auto-switch based on loss rate
+    if (lossRate > 0.6) {
+        systemSettings.config.current_mode = "volatile";
+        systemSettings.config.decay_constant = 0.25;
+        systemSettings.config.market_shift_multiplier = 5.0;
+        systemSettings.config.floors.block = 0.50;
+        if (prevMode !== 'volatile') {
+            console.warn("⚠️ High Loss Rate (" + (lossRate*100).toFixed(0) + "%): Switching to VOLATILE Mode (Aggressive Decay)");
+            addLog("🚨 Market Volatility High: VOLATILE mode ON", "warning");
+        }
+    } else {
+        systemSettings.config.current_mode = "stable";
+        systemSettings.config.decay_constant = 0.15;
+        systemSettings.config.market_shift_multiplier = 3.0;
+        systemSettings.config.floors.block = 0.40;
+        if (prevMode !== 'stable') {
+            console.log("✅ Market Stable: Switching to STABLE Mode");
+            addLog("✅ Market Stable: STABLE mode ON", "success");
+        }
+    }
+    
+    updateSkepticismMeter();
+}
 
 /* ================== OMEGA PERSISTENT MEMORY EXTENSION ================== */
 const MEMORY_KEY = "omega_ai_memory_v1";
@@ -967,12 +1660,18 @@ function getBarrierMemory(market, barrier){
     return mem[market][barrier];
 }
 
-function applyDecay(entry){
-    const hrs = (Date.now()-entry.lastUpdated)/3600000;
-    if(hrs<1) return;
-    const f = Math.pow(0.98, hrs);
-    entry.wins*=f; entry.losses*=f;
-    entry.lastUpdated = Date.now();
+// Aggressive Exponential Decay
+const DECAY_CONSTANT = 0.15; // Increased for "Aggressive" behavior
+function applyAggressiveDecay(entry, marketShift = false) {
+    if (!entry.lastUpdated) return;
+    const now = Date.now();
+    const elapsedMinutes = (now - entry.lastUpdated) / 60000;
+    let lambda = DECAY_CONSTANT;
+    if (marketShift) lambda *= 3.0;
+    const decayFactor = Math.exp(-lambda * elapsedMinutes);
+    entry.wins *= decayFactor;
+    entry.losses *= decayFactor;
+    entry.lastUpdated = now;
 }
 
 function isBarrierBlocked(market, barrier){
@@ -982,28 +1681,125 @@ function isBarrierBlocked(market, barrier){
 }
 
 /* override memoryBias */
-memoryBias = function(barrier){
+function getMarket(){ return document.getElementById('market').value; }
+
+let lastMarket = null;
+memoryBias = function(barrier) {
     const market = getMarket();
     const e = getBarrierMemory(market, barrier);
-    applyDecay(e);
-    if(isBarrierBlocked(market, barrier)) return -100;
-    const t = e.wins+e.losses;
-    if(t<3) return 0;
-    const w = e.wins/t;
-    if(w<0.4) return -8;
-    if(w>0.65) return 6;
+    
+    // 1. Get decay factor from our new system
+    const isShift = (typeof lastMarket !== 'undefined' && lastMarket !== market);
+    const confidenceFactor = getDecayedConfidence(e, isShift);
+    
+    // 2. Apply it to wins/losses
+    e.wins *= confidenceFactor;
+    e.losses *= confidenceFactor;
+    e.lastUpdated = Date.now();
+    lastMarket = market;
+
+    const total = e.wins + e.losses;
+    const winRate = total > 0 ? (e.wins / total) : 0;
+
+    // 3. Use Thresholds from digits.json
+    const floors = getFloors();
+    
+    if (winRate < floors.block) {
+        console.warn("Confidence too low (below block floor). Blocking Trade.");
+        return -100;
+    }
+    if (winRate < floors.hedge) {
+        console.log("Low Confidence: Hedging response...");
+        return 0;
+    }
+    if (winRate >= floors.strong) {
+        console.log("Strong confidence: Proceeding with trade.");
+        return 6;
+    }
+    
     return 0;
-};
+}
+
+// ===== EXECUTION SAFETY / DIGIT SHIELD =====
+function isExecutionSafe(digit, dir = null) {
+    try {
+        const totalGlobal = ticks.length || 1;
+        const globalCount = ticks.filter(d => d === digit).length;
+        const globalPct = (globalCount / totalGlobal) * 100;
+
+        const totalMicro = microHistory.length || 1;
+        const microCount = microHistory.filter(d => d === digit).length;
+        const microPct = (microCount / totalMicro) * 100;
+
+        // Over 0 Anti-Zero Shield
+        if (digit === 0) {
+            if (globalPct >= 7) return { ok: false, reason: `Shield: Digit 0 Global at ${globalPct.toFixed(1)}% (>=7%)` };
+            if (microPct < 20) return { ok: false, reason: `Shield: Digit 0 Micro at ${microPct.toFixed(1)}% (<20%) — market not warm` };
+        }
+
+        // Digit 1: only OVER, global <=9% and micro >=18%
+        if (digit === 1) {
+            if (dir && dir !== 'over') return { ok: false, reason: `Shield: Digit 1 only allowed OVER` };
+            if (globalPct > 9) return { ok: false, reason: `Shield: Digit 1 Global at ${globalPct.toFixed(1)}% (>9%)` };
+            if (microPct < 18) return { ok: false, reason: `Shield: Digit 1 Micro at ${microPct.toFixed(1)}% (<18%)` };
+        }
+
+        // Digit 9: only UNDER, global <=9% and micro between 18% and 20%
+        if (digit === 9) {
+            if (dir && dir !== 'under') return { ok: false, reason: `Shield: Digit 9 only allowed UNDER` };
+            if (globalPct > 9) return { ok: false, reason: `Shield: Digit 9 Global at ${globalPct.toFixed(1)}% (>9%)` };
+            if (microPct < 18 || microPct > 20) return { ok: false, reason: `Shield: Digit 9 Micro at ${microPct.toFixed(1)}% (required 18-20%)` };
+        }
+
+        return { ok: true };
+    } catch (e) { console.warn('isExecutionSafe error', e); return { ok: false, reason: 'Check error' }; }
+}
+
+async function placeTrade(dir, digit) {
+    try {
+        const safe = isExecutionSafe(digit, dir);
+        if (!safe.ok) {
+            console.warn(safe.reason);
+            addLog(safe.reason, 'warning');
+            return false;
+        }
+
+        const mem = (typeof memoryBias === 'function') ? memoryBias(digit) : 0;
+        const memOk = (mem > 0.65) || (mem >= 6); // support both scaled memoryBias returns
+        if (!memOk) {
+            const reason = `Shield: memoryBias insufficient for ${digit} (mem=${mem})`;
+            console.warn(reason);
+            addLog(reason, 'warning');
+            return false;
+        }
+
+        // Passed all checks — execute
+        await executeTradeSpecific(dir, digit);
+        return true;
+    } catch (e) { console.error('placeTrade failed', e); addLog('placeTrade failed: ' + e.message, 'error'); return false; }
+}
+
 
 /* persist trade outcomes */
 const _origAddToHistory = addToHistory;
 addToHistory = function(contract){
     _origAddToHistory(contract);
+    
+    // Track result for auto-tuning
+    const profit = parseFloat(contract.profit);
+    const result = profit > 0 ? 'win' : 'loss';
+    recentResults.push(result);
+    if (recentResults.length > RECENT_WINDOW) recentResults.shift();
+    
+    // Auto-tune system based on recent performance
+    autoTuneSystem(recentResults);
+    
+    // Persist memory
     const market = getMarket();
     const barrier = parseInt(contract.barrier);
     const e = getBarrierMemory(market, barrier);
-    applyDecay(e);
-    if(parseFloat(contract.profit)>0){
+    applyAggressiveDecay(e, lastMarket !== market);
+    if(profit>0){
         e.wins++; e.streak=Math.max(1,e.streak+1);
     }else{
         e.losses++; e.streak=Math.min(-1,e.streak-1);
